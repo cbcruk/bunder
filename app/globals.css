@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Archivo:wght@500;600&display=swap');
+
+/* 방향: 제도용지(blueprint). 차가운 슬레이트 지면 + 잉크빛 본문,
+   펼침 상태에만 쓰는 인디고 표시색. 크기 막대가 유일한 시각적 장치다. */
+:root {
+  --paper: #eef1f5;
+  --ink: #1b2733;
+  --ink-soft: #6b7a8c;
+  --rule: #d2dae4;
+  --mark: #4c3ae3;
+  --row: 1.7rem;
+  --indent: 1.05rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #10151b;
+    --ink: #dbe3ec;
+    --ink-soft: #7c8b9d;
+    --rule: #23303d;
+    --mark: #9b8cff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 13px;
+  line-height: var(--row);
+  -webkit-font-smoothing: antialiased;
+}
+
+.viewer {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem) 6rem;
+}
+
+.viewer__eyebrow {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mark);
+}
+
+.viewer__title {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0.2rem 0 0.5rem;
+}
+
+.viewer__note {
+  margin: 0 0 2rem;
+  max-width: 46ch;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.viewer__body { border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+
+/* ── 트리 ─────────────────────────────────────────────── */
+
+.tree { list-style: none; margin: 0; padding: 0; }
+
+/* 중첩된 tree에만 안내선을 그린다. 최상위에는 불필요하다. */
+.tree .tree {
+  margin-left: calc(var(--indent) / 2);
+  padding-left: calc(var(--indent) / 2);
+  border-left: 1px solid var(--rule);
+}
+
+.tree__item { margin: 0; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr) 4.6rem 2.6rem 5.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  height: var(--row);
+  padding-right: 0.3rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+a.row:hover { background: color-mix(in srgb, var(--mark) 8%, transparent); }
+a.row:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; }
+
+.row__mark { color: var(--ink-soft); text-align: center; }
+.row--dir .row__mark { color: var(--mark); }
+.row--dir.is-open .row__mark,
+.row--dir.is-open .row__name { font-weight: 700; }
+
+.row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row--dir .row__name::after { content: '/'; color: var(--ink-soft); }
+.row--link .row__name { font-style: italic; color: var(--ink-soft); }
+
+.row__size,
+.row__time { color: var(--ink-soft); font-size: 11px; text-align: right; }
+
+/* 서명 요소: 크기를 로그 압축해 폭으로 보여주는 가는 막대.
+   숫자만으로는 안 잡히는 "이 폴더에서 뭐가 무거운가"를 훑게 해 준다. */
+.row__bar { display: block; height: 1px; background: var(--rule); }
+.row__bar i {
+  display: block;
+  height: 1px;
+  width: calc(var(--ratio) * 100%);
+  background: var(--mark);
+  opacity: 0.55;
+}
+
+.tree__empty,
+.tree__error,
+.tree__truncated {
+  margin: 0;
+  padding-left: 1.6rem;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.tree__error { color: #c2334d; }
+
+/* ── 로딩 ─────────────────────────────────────────────── */
+
+.rail {
+  display: block;
+  height: 8px;
+  width: var(--w);
+  margin: calc((var(--row) - 8px) / 2) 0;
+  margin-left: 1.6rem;
+  background: var(--rule);
+  border-radius: 1px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rail { animation: none; }
+}
+
+@media (max-width: 34rem) {
+  .row { grid-template-columns: 1.1rem minmax(0, 1fr) 4.4rem; }
+  .row__bar, .row__time { display: none; }
+}
