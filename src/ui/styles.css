@@ -31,7 +31,7 @@ body {
 }
 
 .viewer {
-  max-width: 62rem;
+  max-width: 80rem;
   margin: 0 auto;
   padding: clamp(1.5rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem) 6rem;
 }
@@ -59,7 +59,29 @@ body {
   font-size: 12px;
 }
 
-.viewer__body { border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.viewer__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.6rem;
+}
+
+.viewer__tree { min-width: 0; }
+
+.viewer__preview {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  min-width: 0;
+  min-height: 12rem;
+  padding: 0.6rem 0.9rem;
+  border-left: 1px solid var(--rule);
+}
+
+.preview__empty,
+.preview__path { margin: 0; color: var(--ink-soft); font-size: 12px; }
+.preview__path { color: var(--ink); overflow-wrap: anywhere; }
 
 .tree { list-style: none; margin: 0; padding: 0; }
 
@@ -81,20 +103,15 @@ body {
   color: inherit;
   text-decoration: none;
   border-radius: 2px;
-}
-
-button.row {
-  width: 100%;
-  border: 0;
-  padding: 0 0.3rem 0 0;
-  background: none;
-  font: inherit;
-  text-align: left;
   cursor: pointer;
+  user-select: none;
 }
 
-button.row:hover { background: color-mix(in srgb, var(--mark) 8%, transparent); }
-button.row:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; }
+.row:hover { background: color-mix(in srgb, var(--mark) 8%, transparent); }
+
+.tree__item:focus { outline: none; }
+.tree__item[aria-selected='true'] > .row { background: color-mix(in srgb, var(--mark) 16%, transparent); }
+.tree__item:focus-visible > .row { outline: 2px solid var(--mark); outline-offset: -2px; }
 
 .row__mark { color: var(--ink-soft); text-align: center; }
 .row--dir .row__mark { color: var(--mark); }
@@ -155,6 +172,11 @@ button.row:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px;
 
 @media (prefers-reduced-motion: reduce) {
   .rail { animation: none; }
+}
+
+@media (max-width: 48rem) {
+  .viewer__body { grid-template-columns: minmax(0, 1fr); }
+  .viewer__preview { position: static; border-left: 0; border-top: 1px solid var(--rule); }
 }
 
 @media (max-width: 34rem) {

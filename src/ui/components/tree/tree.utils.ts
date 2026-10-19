@@ -110,6 +110,30 @@ export function toggleOpen(open: ReadonlySet<string>, target: string): Set<strin
   return next
 }
 
+/**
+ * Finds the direct child of `dir` that lies on the path to `target`.
+ *
+ * @param dir A root-relative directory; `""` is the root.
+ * @param target A root-relative path.
+ * @returns The child's root-relative path, or `null` when `target` is not strictly below `dir`.
+ *
+ * @example
+ * ```ts
+ * import { childOnPath } from './tree.utils'
+ *
+ * childOnPath('src', 'src/ui/main.tsx') // 'src/ui'
+ * childOnPath('', 'README.md') // 'README.md'
+ * childOnPath('src', 'src') // null
+ * ```
+ */
+export function childOnPath(dir: string, target: string): string | null {
+  const prefix = dir === '' ? '' : `${dir}/`
+  if (!target.startsWith(prefix) || target === dir) return null
+  const rest = target.slice(prefix.length)
+  const slash = rest.indexOf('/')
+  return prefix + (slash === -1 ? rest : rest.slice(0, slash))
+}
+
 /** Formats a byte count with a binary unit, such as `"4.2 KB"`. */
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
