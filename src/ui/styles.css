@@ -119,13 +119,26 @@ button.row:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px;
 
 .tree__empty,
 .tree__error,
-.tree__truncated {
+.tree__more {
   margin: 0;
   padding-left: 1.6rem;
   color: var(--ink-soft);
   font-size: 11px;
 }
 .tree__error { color: #c2334d; }
+
+.tree__more button {
+  height: var(--row);
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--mark);
+  font: inherit;
+  cursor: pointer;
+}
+.tree__more button:hover:not(:disabled) { text-decoration: underline; }
+.tree__more button:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.tree__more button:disabled { color: var(--ink-soft); cursor: default; }
 
 .rail {
   display: block;
