@@ -1,4 +1,4 @@
-# Finder
+# bunder
 
 읽기 전용 파일 트리 로컬 앱. [barlo](https://github.com/cbcruk/barlo)로 이미 설치된 Chrome을 앱 창으로 띄우고, 파일시스템은 Bun 쪽에서 읽는다.
 
@@ -7,8 +7,8 @@
 ```bash
 pnpm install
 pnpm start /보여줄/폴더      # 또는 EXPLORER_ROOT=/보여줄/폴더 pnpm start
-pnpm compile                 # out/finder 단일 실행 파일 (Node·node_modules 불필요, 로컬 Chrome 필요)
-./out/finder /보여줄/폴더
+pnpm compile                 # out/bunder 단일 실행 파일 (Node·node_modules 불필요, 로컬 Chrome 필요)
+./out/bunder /보여줄/폴더
 ```
 
 경로를 생략하면 현재 디렉터리가 루트가 된다.
