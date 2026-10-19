@@ -1,7 +1,8 @@
 import { open, stat } from 'node:fs/promises'
 
 import type { FileInfo } from './fs.types'
-import { ForbiddenPath, safeResolve } from './safe-resolve'
+import { withoutPaths } from './fs-error'
+import { safeResolve } from './safe-resolve'
 import { SNIFF_BYTES, sniff } from './sniff'
 
 /** Raised for an entry that is neither a directory nor a regular file, such as a FIFO or socket. */
@@ -29,9 +30,7 @@ export class UnpreviewableEntry extends Error {
  */
 export async function inspectFile(root: string, rel: string): Promise<{ abs: string; info: FileInfo }> {
   return inspect(root, rel).catch((error: unknown) => {
-    if (error instanceof ForbiddenPath || error instanceof UnpreviewableEntry) throw error
-    const code = (error as NodeJS.ErrnoException | null)?.code
-    throw new Error(code ? `Cannot read ${rel} (${code})` : `Cannot read ${rel}`)
+    throw withoutPaths(rel, error)
   })
 }
 

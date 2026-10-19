@@ -7,7 +7,15 @@ const listings = new Map<string, Map<number, Promise<ListingResult>>>()
 const stats = new Map<string, Map<string, Promise<EntryStat | null>>>()
 const listeners = new Map<string, Set<() => void>>()
 
-;(window as unknown as FinderPage).onDirChanged = rel => {
+;(window as unknown as FinderPage).onDirChanged = (rel, names) => {
+  invalidate(rel)
+  for (const name of names) {
+    const child = rel === '' ? name : `${rel}/${name}`
+    if (listeners.has(child)) invalidate(child)
+  }
+}
+
+function invalidate(rel: string): void {
   evict(rel)
   for (const listener of listeners.get(rel) ?? []) listener()
 }

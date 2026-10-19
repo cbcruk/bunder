@@ -41,6 +41,11 @@ export interface FinderBridge {
  * barlo has no channel from Bun to the page, so this is the reverse half of {@linkcode FinderBridge}.
  */
 export interface FinderPage {
-  /** Told that a watched directory's entries changed and its listing is stale. */
-  onDirChanged(rel: string): void
+  /**
+   * Told that a watched directory's entries changed and its listing is stale.
+   *
+   * @param names The entries the change mentioned, empty when unknown. One of them may itself be a
+   * watched directory whose own watch saw nothing, such as one whose permissions changed.
+   */
+  onDirChanged(rel: string, names: string[]): void
 }
