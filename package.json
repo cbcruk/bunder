@@ -1,10 +1,10 @@
 {
-  "name": "rsc-finder",
+  "name": "bunder",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "start": "bun src/main.ts",
-    "compile": "bun build --compile src/main.ts --outfile out/finder",
+    "compile": "bun build --compile src/main.ts --outfile out/bunder",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
