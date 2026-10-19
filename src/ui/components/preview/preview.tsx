@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { formatSize, watchListing } from '../tree/tree.utils'
 import type { PreviewProps, PreviewResult } from './preview.types'
-import { loadPreview, parentOf, TEXT_LIMIT } from './preview.utils'
+import { loadPreview, mediaUrl, parentOf, TEXT_LIMIT } from './preview.utils'
 
 /**
  * Shows the selected entry: text as text, media through a `blob:` URL, anything else described.
@@ -11,7 +11,8 @@ import { loadPreview, parentOf, TEXT_LIMIT } from './preview.utils'
  * readable once the file on disk is modified.
  *
  * `blob:` URLs share the app's origin, so they are only ever made for the media kinds the Bun side
- * sniffed, and images go through `<img>`, where SVG scripts do not run.
+ * sniffed. SVG gets a `data:` URL instead (see {@linkcode mediaUrl}), and images go through
+ * `<img>`, where SVG scripts do not run.
  */
 export function Preview({ rel }: PreviewProps): ReactNode {
   const [loaded, setLoaded] = useState<{ rel: string; result: PreviewResult } | null>(null)
@@ -75,9 +76,17 @@ function Media({ kind, blob, name }: MediaProps): ReactNode {
   const [url, setUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    const next = URL.createObjectURL(blob)
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
+    let release: (() => void) | null = null
+    let live = true
+    void mediaUrl(blob).then(made => {
+      if (!live) return made.release()
+      release = made.release
+      setUrl(made.url)
+    }, () => {})
+    return () => {
+      live = false
+      release?.()
+    }
   }, [blob])
 
   if (!url) return null

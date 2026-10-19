@@ -3,6 +3,7 @@ import path from 'node:path'
 
 /** Raised when a relative path resolves outside the explorer root. */
 export class ForbiddenPath extends Error {
+  /** Creates the error for `rel`, the root-relative path that escaped. */
   constructor(rel: string) {
     super(`Path escapes the root: ${rel}`)
     this.name = 'ForbiddenPath'

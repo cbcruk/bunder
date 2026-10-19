@@ -51,6 +51,31 @@ export async function loadPreview(rel: string): Promise<PreviewResult> {
   }
 }
 
+/**
+ * Makes a URL a media element can load the blob from, never one that could run its script on the
+ * app's origin.
+ *
+ * A `blob:` URL inherits the app's origin, so an SVG behind one runs its scripts with the bridge in
+ * reach once opened as a page ("Open image in new tab"). SVG therefore gets a `data:` URL, whose
+ * documents have an opaque origin. Other media keeps a `blob:` URL, which streams instead of
+ * copying the file into memory.
+ *
+ * @returns The URL, and a function that releases it.
+ */
+export async function mediaUrl(blob: Blob): Promise<{ url: string; release: () => void }> {
+  if (blob.type !== 'image/svg+xml') {
+    const url = URL.createObjectURL(blob)
+    return { url, release: () => URL.revokeObjectURL(url) }
+  }
+  const url = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+  return { url, release: () => {} }
+}
+
 /** Returns the directory holding a root-relative path, `""` for an entry at the root. */
 export function parentOf(rel: string): string {
   const slash = rel.lastIndexOf('/')

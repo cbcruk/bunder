@@ -21,15 +21,21 @@ export async function setInputFiles(
   inputId: string,
   abs: string,
 ): Promise<void> {
-  const found = await window.session.send<{ result: { objectId?: string } }>('Runtime.evaluate', {
-    expression: `(() => {
-      if (location.origin !== ${JSON.stringify(appOrigin)}) return null
-      const el = document.getElementById(${JSON.stringify(inputId)})
-      return el instanceof HTMLInputElement && el.type === 'file' ? el : null
-    })()`,
-  })
-  const objectId = found.isOk() ? found.unwrap().result.objectId : undefined
-  if (!objectId) throw new Error(`No file input #${inputId} in the app page`)
+  const found = await window.session.send<{ result: { type: string; objectId?: string } }>(
+    'Runtime.evaluate',
+    {
+      expression: `(() => {
+        if (location.origin !== ${JSON.stringify(appOrigin)}) return 'off-origin'
+        const el = document.getElementById(${JSON.stringify(inputId)})
+        return el instanceof HTMLInputElement && el.type === 'file' ? el : null
+      })()`,
+    },
+  )
+  if (found.isErr()) throw new Error(found.error.message)
+  const { result } = found.unwrap()
+  if (result.type === 'string') throw new Error('The window is not showing the app page')
+  if (!result.objectId) throw new Error(`No file input #${inputId} in the app page`)
+  const { objectId } = result
 
   try {
     const set = await window.session.send('DOM.setFileInputFiles', { files: [abs], objectId })

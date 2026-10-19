@@ -17,6 +17,10 @@ if (!root) {
   process.exit(1)
 }
 
+// Known once the app page has loaded; before that the window is still on barlo's blank page, whose
+// origin can read as "null".
+const appOrigin = Promise.withResolvers<string>()
+
 const watcher = createDirWatcher(root, rel => {
   void app.evaluate((rel: string) => (window as unknown as FinderPage).onDirChanged?.(rel), rel)
 })
@@ -29,7 +33,8 @@ const bridge: FinderBridge = {
   unwatchDir: async rel => watcher.unwatch(rel),
   provideFile: async (rel, inputId) => {
     const { abs, info } = await inspectFile(root, rel)
-    if (info.kind !== 'dir') await setInputFiles(app.mainWindow().unwrap(), appOrigin, inputId, abs)
+    if (info.kind === 'dir') return info
+    await setInputFiles(app.mainWindow().unwrap(), await appOrigin.promise, inputId, abs)
     return info
   },
 }
@@ -52,9 +57,6 @@ app.onExit(() => {
 })
 app.serveOrigin(ui.url.origin)
 
-// The window starts on barlo's blank page, which is already on the origin the app is served from.
-const appOrigin = (await app.evaluate<string>('location.origin')).unwrap()
-
 for (const [name, fn] of Object.entries(bridge)) {
   const exposed = await app.exposeFunction(name, fn)
   exposed.unwrap()
@@ -65,3 +67,4 @@ if (loaded.isErr()) {
   console.error(loaded.error.message)
   app.exit()
 }
+appOrigin.resolve((await app.evaluate<string>('location.origin')).unwrap())
