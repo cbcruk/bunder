@@ -10,6 +10,7 @@ import { Skeleton } from '@astryxdesign/core/Skeleton'
 import { ArrowUturnRightIcon, ChevronRightIcon, DocumentIcon } from '@heroicons/react/24/outline'
 import { FolderIcon } from '@heroicons/react/24/solid'
 import {
+  memo,
   startTransition,
   Suspense,
   use,
@@ -37,8 +38,10 @@ const column: CSSProperties = { flexShrink: 0, overflowY: 'auto' }
  * so the old entries stay until the new ones arrive. Large directories arrive
  * {@linkcode PAGE_SIZE} entries at a time behind a "Show more" button.
  *
- * Arrow keys move within the column through `useListFocus`, which keeps one tab stop per column,
- * and selection follows focus. Moving between columns is the page's job.
+ * Arrow keys and PageUp/PageDown move within the column through `useListFocus`. The column keeps
+ * one tab stop, on whichever row last had focus however it got there, and selection follows focus
+ * unless the focus was restored by {@linkcode focusQuietly}. Moving between columns is the page's
+ * job.
  */
 export function DirectoryColumn(props: DirectoryColumnProps): ReactNode {
   return (
@@ -50,7 +53,14 @@ export function DirectoryColumn(props: DirectoryColumnProps): ReactNode {
   )
 }
 
-function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColumnProps): ReactNode {
+function ColumnBody({
+  rel,
+  selected,
+  onSelect,
+  onSelectionLost,
+  isEntering,
+  onEntered,
+}: DirectoryColumnProps): ReactNode {
   const [view, setView] = useState<ColumnView>(() => ({
     limit: PAGE_SIZE,
     listing: readListing(rel, PAGE_SIZE),
@@ -61,6 +71,7 @@ function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColum
     itemSelector: ITEM,
     wrap: false,
     hasRovingTabIndex: true,
+    hasPaging: true,
   })
 
   useEffect(
@@ -90,6 +101,12 @@ function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColum
     getItems()[from]?.focus()
   }, [result, getItems])
 
+  useEffect(() => {
+    if (!isEntering) return
+    onEntered()
+    getItems()[0]?.focus()
+  }, [isEntering, onEntered, getItems])
+
   if (!result.ok) {
     return (
       <Banner status="error" title="Cannot read this folder" description={result.message} container="section" />
@@ -104,7 +121,13 @@ function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColum
 
   const onFocus = (event: FocusEvent<HTMLUListElement>): void => {
     handleFocus(event)
-    const rel = (event.target as HTMLElement).closest<HTMLElement>('li[data-rel]')?.dataset.rel
+    const target = event.target as HTMLElement
+    for (const item of getItems()) item.tabIndex = item === target ? 0 : -1
+    if (target.dataset.quiet) {
+      delete target.dataset.quiet
+      return
+    }
+    const rel = target.closest<HTMLElement>('li[data-rel]')?.dataset.rel
     const entry = rel === undefined ? undefined : byRel.get(rel)
     if (entry) onSelect(entry)
   }
@@ -121,18 +144,7 @@ function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColum
     <VStack gap={2}>
       <List ref={listRef} density="compact" onKeyDown={handleKeyDown} onFocus={onFocus}>
         {entries.map(entry => (
-          <ListItem
-            key={entry.rel}
-            label={entry.name}
-            data-rel={entry.rel}
-            data-kind={entry.kind}
-            startContent={<EntryIcon entry={entry} />}
-            endContent={
-              entry.kind === 'dir' ? <Icon icon={ChevronRightIcon} size="xsm" color="secondary" /> : undefined
-            }
-            isSelected={entry.rel === selected}
-            onClick={event => focusRow(event, entry, onSelect)}
-          />
+          <Row key={entry.rel} entry={entry} isSelected={entry.rel === selected} onSelect={onSelect} />
         ))}
       </List>
       {remaining > 0 && (
@@ -148,6 +160,27 @@ function ColumnBody({ rel, selected, onSelect, onSelectionLost }: DirectoryColum
     </VStack>
   )
 }
+
+interface RowProps {
+  entry: Entry
+  isSelected: boolean
+  onSelect: (entry: Entry) => void
+}
+
+// Memoised so that moving the selection re-renders two rows, not every row of a long column.
+const Row = memo(function Row({ entry, isSelected, onSelect }: RowProps): ReactNode {
+  return (
+    <ListItem
+      label={entry.name}
+      data-rel={entry.rel}
+      data-kind={entry.kind}
+      startContent={<EntryIcon entry={entry} />}
+      endContent={entry.kind === 'dir' ? <Icon icon={ChevronRightIcon} size="xsm" color="secondary" /> : undefined}
+      isSelected={isSelected}
+      onClick={event => focusRow(event, entry, onSelect)}
+    />
+  )
+})
 
 // ListItem also fires onClick for clicks beside its inner button, which leave focus on <body>;
 // focus the row's button so the keyboard carries on from the clicked row.

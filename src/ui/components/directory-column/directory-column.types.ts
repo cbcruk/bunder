@@ -5,7 +5,9 @@ export type ListingResult = { ok: true; listing: DirListing } | { ok: false; mes
 
 /** What a column is showing: how many entries it asked for, and the read in flight. */
 export interface ColumnView {
+  /** How many entries the column asked for, a multiple of `PAGE_SIZE`. */
   limit: number
+  /** The read for `limit` entries, settled or in flight. */
   listing: Promise<ListingResult>
 }
 
@@ -22,4 +24,8 @@ export interface DirectoryColumnProps {
    * re-read pushed it past the loaded page, with this column's directory to select instead.
    */
   onSelectionLost: (rel: string) => void
+  /** Whether focus should move to the first row once the listing is on screen. */
+  isEntering: boolean
+  /** Called once a pending entry has been carried out, or turned out to have no row to land on. */
+  onEntered: () => void
 }

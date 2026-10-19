@@ -13,7 +13,15 @@ import { renderFormatOf } from '../rendered-document/rendered-document.utils'
 import type { PreviewProps, PreviewResult } from './preview.types'
 import { loadPreview, mediaUrl, TEXT_LIMIT } from './preview.utils'
 
-const media: CSSProperties = { display: 'block', maxWidth: '100%', maxHeight: '60vh' }
+const media: CSSProperties = {
+  display: 'block',
+  alignSelf: 'flex-start',
+  width: 'auto',
+  height: 'auto',
+  maxWidth: '100%',
+  maxHeight: '60vh',
+  objectFit: 'contain',
+}
 const pdf: CSSProperties = {
   display: 'block',
   width: '100%',
@@ -153,9 +161,9 @@ function Media({ kind, blob, name }: MediaProps): ReactNode {
     case 'pdf':
       return <iframe style={pdf} src={url} title={name} />
     case 'video':
-      return <video style={media} src={url} controls />
+      return <video style={media} src={url} controls aria-label={name} />
     case 'audio':
-      return <audio style={{ width: '100%' }} src={url} controls />
+      return <audio style={{ width: '100%' }} src={url} controls aria-label={name} />
   }
 }
 

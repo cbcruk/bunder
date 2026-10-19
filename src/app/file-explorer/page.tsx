@@ -22,7 +22,7 @@ import {
 import type { Entry } from '../../fs/fs.types'
 import { bridge } from '../../ui/bridge'
 import { DirectoryColumn } from '../../ui/components/directory-column/directory-column'
-import { parentOf } from '../../ui/components/directory-column/directory-column.utils'
+import { focusQuietly, parentOf } from '../../ui/components/directory-column/directory-column.utils'
 import { Preview } from '../../ui/components/preview/preview'
 import type { Selection } from './page.types'
 import { baseName, columnKeyTarget, columnsFor } from './page.utils'
@@ -39,11 +39,14 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
  *
  * Each column lists one directory on the path to the selection; selecting a folder opens its
  * contents in the next column. Up and Down move within a column, Right enters a folder's column
- * and Left returns, with selection following focus. When the selected entry disappears, the
- * selection moves to its folder, and focus follows if it fell out of the window with the row.
+ * and Left returns, with selection following focus. Right on a folder whose column is still loading
+ * enters it once the rows arrive. When the selected entry disappears, the selection moves to its
+ * folder, and focus is put back without selecting anything if it fell out of the window with the
+ * row. The newest column, or the preview, is scrolled into view whenever the selection changes.
  */
 export default function FileExplorerPage(): ReactNode {
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [entering, setEntering] = useState<string | null>(null)
   const columnsRef = useRef<HTMLElement>(null)
   const refocus = useRef(false)
   const columns = columnsFor(selection)
@@ -59,27 +62,45 @@ export default function FileExplorerPage(): ReactNode {
     setSelection(dir === '' ? null : { rel: dir, kind: 'dir' })
   }, [])
 
+  const onEntered = useCallback(() => setEntering(null), [])
+
+  useEffect(() => {
+    columnsRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [selection])
+
   useEffect(() => {
     if (!refocus.current) return
     refocus.current = false
     const container = columnsRef.current
     const target =
       [...(container?.querySelectorAll<HTMLElement>('li[aria-current="true"] button') ?? [])].at(-1) ??
+      container?.querySelector<HTMLElement>('li[data-rel] button[tabindex="0"]') ??
       container?.querySelector<HTMLElement>('li[data-rel] button')
-    target?.focus()
+    if (target) focusQuietly(target)
   }, [selection])
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     if (!columnsRef.current || event.altKey || event.ctrlKey || event.metaKey) return
-    const target = columnKeyTarget(columnsRef.current, event.target as HTMLElement, event.key)
-    if (!target) return
-    event.preventDefault()
-    target.focus()
+    const from = event.target as HTMLElement
+    const target = columnKeyTarget(columnsRef.current, from, event.key)
+    if (target) {
+      event.preventDefault()
+      target.focus()
+      return
+    }
+    const row = from.closest<HTMLElement>('li[data-rel]')
+    const rel = row?.dataset.rel
+    if (event.key === 'ArrowRight' && row?.dataset.kind === 'dir' && rel !== undefined) {
+      event.preventDefault()
+      setEntering(rel)
+    }
   }
 
   const goUp = (): void => {
     if (!selection) return
     const parent = parentOf(selection.rel)
+    // Reaching the root disables this button, which drops focus; put it back in the first column.
+    if (parent === '') refocus.current = true
     setSelection(parent === '' ? null : { rel: parent, kind: 'dir' })
   }
 
@@ -119,7 +140,7 @@ export default function FileExplorerPage(): ReactNode {
       }
       content={
         <LayoutContent padding={0} isScrollable={false}>
-          <HStack ref={columnsRef} height="100%" style={columnRow} onKeyDown={onKeyDown}>
+          <HStack ref={columnsRef} height="100%" style={columnRow} onKeyDown={onKeyDown} data-columns>
             {columns.map(col => (
               <DirectoryColumn
                 key={col.dir}
@@ -127,6 +148,8 @@ export default function FileExplorerPage(): ReactNode {
                 selected={col.selected}
                 onSelect={onSelect}
                 onSelectionLost={onSelectionLost}
+                isEntering={entering === col.dir}
+                onEntered={onEntered}
               />
             ))}
             {file && (

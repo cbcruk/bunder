@@ -88,6 +88,18 @@ export function watchListing(rel: string, onChange: () => void): () => void {
 }
 
 /**
+ * Moves focus to a row without selecting it.
+ *
+ * Selection follows focus, so restoring focus after the selected row vanished would otherwise
+ * select, and open, whatever row focus lands on. The column's focus handler sees the mark and only
+ * updates its tab stop.
+ */
+export function focusQuietly(row: HTMLElement): void {
+  row.dataset.quiet = 'true'
+  row.focus()
+}
+
+/**
  * Returns the directory holding a root-relative path, `""` for an entry at the root.
  *
  * @example

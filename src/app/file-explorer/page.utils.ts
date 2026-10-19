@@ -35,6 +35,15 @@ export function columnsFor(selection: Selection | null): ColumnSpec[] {
  * Right enters the column to the right, which shows the focused folder's contents, at its first
  * row. Left returns to the column to the left, at its selected row.
  *
+ * @example
+ * ```ts
+ * import { columnKeyTarget } from './page.utils'
+ *
+ * const columns = document.querySelector<HTMLElement>('[data-columns]')!
+ * const target = columnKeyTarget(columns, document.activeElement as HTMLElement, 'ArrowRight')
+ * target?.focus()
+ * ```
+ *
  * @param container The element holding every column, each marked with `data-column`.
  * @param from The focused row's button.
  * @param key The pressed key, as in `KeyboardEvent.key`.
