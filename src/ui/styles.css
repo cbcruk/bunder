@@ -112,6 +112,29 @@ body {
 .preview__pdf { display: block; width: 100%; height: 70vh; border: 1px solid var(--rule); }
 .preview__audio { width: 100%; }
 
+.preview__rendered {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--rule);
+}
+.preview__rendered[data-format='html'] { color-scheme: light; background: #fff; }
+
+.preview__modes { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+.preview__modes button {
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0 0.6rem;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.6rem;
+  cursor: pointer;
+}
+.preview__modes button[aria-pressed='true'] { color: var(--ink); border-color: var(--mark); }
+.preview__modes button:focus-visible { outline: 2px solid var(--mark); outline-offset: 1px; }
+
 .tree { list-style: none; margin: 0; padding: 0; }
 
 .tree .tree {

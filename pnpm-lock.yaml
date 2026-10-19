@@ -11,6 +11,9 @@ importers:
       barlo:
         specifier: ^0.1.2
         version: 0.1.2
+      marked:
+        specifier: ^18.1.1
+        version: 18.1.1
       react:
         specifier: ^19.1.1
         version: 19.2.8
@@ -59,6 +62,11 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  marked@18.1.1:
+    resolution: {integrity: sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   react-dom@19.2.8:
     resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
@@ -110,6 +118,8 @@ snapshots:
       undici-types: 6.21.0
 
   csstype@3.2.3: {}
+
+  marked@18.1.1: {}
 
   react-dom@19.2.8(react@19.2.8):
     dependencies:

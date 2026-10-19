@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "barlo": "^0.1.2",
+    "marked": "^18.1.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
