@@ -26,6 +26,7 @@ import { focusQuietly, parentOf } from '../../ui/components/directory-column/dir
 import { Preview } from '../../ui/components/preview/preview'
 import type { Selection } from './page.types'
 import { baseName, columnKeyTarget, columnsFor } from './page.utils'
+import { useFollowEnd } from './use-follow-end'
 
 const rootPath = bridge.rootPath()
 
@@ -42,7 +43,8 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
  * and Left returns, with selection following focus. Right on a folder whose column is still loading
  * enters it once the rows arrive. When the selected entry disappears, the selection moves to its
  * folder, and focus is put back without selecting anything if it fell out of the window with the
- * row. The newest column, or the preview, is scrolled into view whenever the selection changes.
+ * row. The newest column, or the preview, is scrolled into view whenever the selection changes,
+ * and kept there as the window is resized (see {@linkcode useFollowEnd}).
  */
 export default function FileExplorerPage(): ReactNode {
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -63,6 +65,7 @@ export default function FileExplorerPage(): ReactNode {
   }, [])
 
   const onEntered = useCallback(() => setEntering(null), [])
+  useFollowEnd(columnsRef)
 
   useEffect(() => {
     columnsRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
