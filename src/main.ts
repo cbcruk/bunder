@@ -16,8 +16,12 @@ if (!root) {
   process.exit(1)
 }
 
-const watcher = createDirWatcher(root, rel => {
-  void app.evaluate((rel: string) => (window as unknown as FinderPage).onDirChanged?.(rel), rel)
+const watcher = createDirWatcher(root, (rel, names) => {
+  void app.evaluate(
+    (rel: string, names: string[]) => (window as unknown as FinderPage).onDirChanged?.(rel, names),
+    rel,
+    names,
+  )
 })
 
 const bridge: FinderBridge = {

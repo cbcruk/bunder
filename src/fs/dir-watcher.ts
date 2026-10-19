@@ -16,6 +16,8 @@ interface Watch {
   refs: number
   watcher?: FSWatcher
   timer?: Timer
+  /** Entry names reported since the last notice. */
+  names: Set<string>
 }
 
 /** Delay that folds a burst of events, such as a checkout touching many files, into one notice. */
@@ -28,10 +30,18 @@ const SETTLE_MS = 100
  * counting lets the page watch and unwatch in any order, including React's double-mounted effects
  * in development.
  *
+ * The names of the entries that changed are passed along, because some changes to a directory
+ * reach only its parent's watch: on macOS, `chmod` on a watched directory fires nothing on its own
+ * watch and `rename` for its name on the parent's.
+ *
  * @param root The explorer root, already passed through `realpath`.
- * @param onChange Called with the directory's root-relative path once its events settle.
+ * @param onChange Called once events settle with the directory's root-relative path and the names
+ * of the entries the events mentioned, which is empty when the platform gave none.
  */
-export function createDirWatcher(root: string, onChange: (rel: string) => void): DirWatcher {
+export function createDirWatcher(
+  root: string,
+  onChange: (rel: string, names: string[]) => void,
+): DirWatcher {
   const watches = new Map<string, Watch>()
 
   const release = (rel: string, w: Watch): void => {
@@ -47,7 +57,7 @@ export function createDirWatcher(root: string, onChange: (rel: string) => void):
         w.refs++
         return
       }
-      w = { refs: 1 }
+      w = { refs: 1, names: new Set() }
       watches.set(rel, w)
 
       const abs = await safeResolve(root, rel).catch((error: unknown) => {
@@ -56,9 +66,14 @@ export function createDirWatcher(root: string, onChange: (rel: string) => void):
       })
       if (watches.get(rel) !== w) return
 
-      w.watcher = watch(abs, { persistent: false }, () => {
+      w.watcher = watch(abs, { persistent: false }, (_event, name) => {
+        if (name) w.names.add(String(name))
         clearTimeout(w.timer)
-        w.timer = setTimeout(() => onChange(rel), SETTLE_MS)
+        w.timer = setTimeout(() => {
+          const names = [...w.names]
+          w.names.clear()
+          onChange(rel, names)
+        }, SETTLE_MS)
       })
       w.watcher.on('error', () => release(rel, w))
     },

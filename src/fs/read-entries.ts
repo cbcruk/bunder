@@ -1,6 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
+import { withoutPaths } from './fs-error'
 import { PAGE_SIZE, type DirListing, type Entry, type EntryKind } from './fs.types'
 import { safeResolve, toPosix } from './safe-resolve'
 
@@ -12,7 +13,8 @@ import { safeResolve, toPosix } from './safe-resolve'
  * link instead of being followed, which also rules out link cycles.
  *
  * The whole directory is read and sorted on every call, since the order depends on every name, but
- * only the first `limit` entries cross the bridge.
+ * only the first `limit` entries cross the bridge. Filesystem errors are reported by code alone
+ * (see {@linkcode withoutPaths}), so the page never sees absolute paths.
  *
  * @param root The explorer root, already passed through `realpath`.
  * @param rel The directory to list, relative to `root`.
@@ -21,6 +23,12 @@ import { safeResolve, toPosix } from './safe-resolve'
  * @throws {ForbiddenPath} When `rel` resolves outside `root`.
  */
 export async function readEntries(root: string, rel: string, limit: number): Promise<DirListing> {
+  return list(root, rel, limit).catch((error: unknown) => {
+    throw withoutPaths(rel, error)
+  })
+}
+
+async function list(root: string, rel: string, limit: number): Promise<DirListing> {
   const abs = await safeResolve(root, rel)
   const visible = (await readdir(abs, { withFileTypes: true }))
     .filter(d => !d.name.startsWith('.'))
