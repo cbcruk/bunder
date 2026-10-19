@@ -1,15 +1,32 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Banner } from '@astryxdesign/core/Banner'
+import { CodeBlock } from '@astryxdesign/core/CodeBlock'
+import { VStack } from '@astryxdesign/core/Layout'
+import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { Text } from '@astryxdesign/core/Text'
+import { Suspense, use, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
+import { formatSize, parentOf, readStat, watchListing } from '../directory-column/directory-column.utils'
 import { RenderedDocument } from '../rendered-document/rendered-document'
 import { renderFormatOf } from '../rendered-document/rendered-document.utils'
-import { formatSize, watchListing } from '../tree/tree.utils'
 import type { PreviewProps, PreviewResult } from './preview.types'
-import { loadPreview, mediaUrl, parentOf, TEXT_LIMIT } from './preview.utils'
+import { loadPreview, mediaUrl, TEXT_LIMIT } from './preview.utils'
+
+const media: CSSProperties = { display: 'block', maxWidth: '100%', maxHeight: '60vh' }
+const pdf: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  height: '70vh',
+  border: 'var(--border-width) solid var(--color-border)',
+  borderRadius: 'var(--radius-element)',
+}
 
 /**
- * Shows the selected entry: text as text, media through a `blob:` URL, anything else described.
+ * Shows the selected file: its name and details, then text as text, media through a URL, and
+ * anything else described.
  *
- * Reloads when the entry's folder reports a change, since a `File` Chrome handed out stops being
+ * Reloads when the file's folder reports a change, since a `File` Chrome handed out stops being
  * readable once the file on disk is modified.
  *
  * `blob:` URLs share the app's origin, so they are only ever made for the media kinds the Bun side
@@ -36,33 +53,48 @@ export function Preview({ rel }: PreviewProps): ReactNode {
   const result = loaded?.rel === rel ? loaded.result : null
 
   return (
-    <article className="preview">
-      <header className="preview__head">
-        <h2 className="preview__name">{name}</h2>
-        {result && <p className="preview__meta">{describe(result)}</p>}
-      </header>
-      {result ? <Body name={name} result={result} /> : <p className="preview__note">Loading…</p>}
-    </article>
+    <VStack gap={4}>
+      <VStack gap={1}>
+        <Text type="label" as="p" maxLines={2}>
+          {name}
+        </Text>
+        {result && (
+          <Text type="supporting" as="p">
+            {describe(result)}
+          </Text>
+        )}
+      </VStack>
+      {result ? <Body name={name} result={result} /> : <Spinner label="Loading" />}
+      <Suspense fallback={null}>
+        <Details rel={rel} name={name} />
+      </Suspense>
+    </VStack>
   )
 }
 
 function Body({ name, result }: { name: string; result: PreviewResult }): ReactNode {
   switch (result.kind) {
     case 'dir':
-      return <p className="preview__note">Folder. Expand it in the tree to see what it holds.</p>
+      return null
     case 'text':
       return (
-        <>
+        <VStack gap={2}>
           <TextView name={name} text={result.text} />
           {result.truncated && (
-            <p className="preview__note">Showing the first {formatSize(TEXT_LIMIT)}.</p>
+            <Text type="supporting" as="p">
+              Showing the first {formatSize(TEXT_LIMIT)}.
+            </Text>
           )}
-        </>
+        </VStack>
       )
     case 'binary':
-      return <p className="preview__note">Binary file. There is no preview for this format.</p>
+      return (
+        <Text type="supporting" as="p">
+          Binary file. There is no preview for this format.
+        </Text>
+      )
     case 'error':
-      return <p className="preview__error">Cannot preview this file: {result.message}</p>
+      return <Banner status="error" title="Cannot preview this file" description={result.message} container="section" />
     default:
       return <Media kind={result.kind} blob={result.blob} name={name} />
   }
@@ -70,26 +102,19 @@ function Body({ name, result }: { name: string; result: PreviewResult }): ReactN
 
 function TextView({ name, text }: { name: string; text: string }): ReactNode {
   const format = renderFormatOf(name)
-  const [rendered, setRendered] = useState(false)
+  const [view, setView] = useState('source')
+  const code = <CodeBlock code={text} size="sm" width="100%" maxHeight="60vh" />
 
-  if (!format) return <pre className="preview__text">{text}</pre>
+  if (!format) return code
 
   return (
-    <>
-      <div className="preview__modes" role="group" aria-label="View">
-        <button type="button" aria-pressed={!rendered} onClick={() => setRendered(false)}>
-          Source
-        </button>
-        <button type="button" aria-pressed={rendered} onClick={() => setRendered(true)}>
-          Rendered
-        </button>
-      </div>
-      {rendered ? (
-        <RenderedDocument format={format} text={text} title={name} />
-      ) : (
-        <pre className="preview__text">{text}</pre>
-      )}
-    </>
+    <VStack gap={2}>
+      <SegmentedControl label="View" size="sm" value={view} onChange={setView}>
+        <SegmentedControlItem value="source" label="Source" />
+        <SegmentedControlItem value="rendered" label="Rendered" />
+      </SegmentedControl>
+      {view === 'rendered' ? <RenderedDocument format={format} text={text} title={name} /> : code}
+    </VStack>
   )
 }
 
@@ -106,29 +131,44 @@ function Media({ kind, blob, name }: MediaProps): ReactNode {
   useEffect(() => {
     let release: (() => void) | null = null
     let live = true
-    void mediaUrl(blob).then(made => {
-      if (!live) return made.release()
-      release = made.release
-      setUrl(made.url)
-    }, () => live && setFailed(true))
+    void mediaUrl(blob).then(
+      made => {
+        if (!live) return made.release()
+        release = made.release
+        setUrl(made.url)
+      },
+      () => live && setFailed(true),
+    )
     return () => {
       live = false
       release?.()
     }
   }, [blob])
 
-  if (failed) return <p className="preview__error">Cannot read this file.</p>
-  if (!url) return null
+  if (failed) return <Banner status="error" title="Cannot read this file" container="section" />
+  if (!url) return <Spinner label="Loading" />
   switch (kind) {
     case 'image':
-      return <img className="preview__media" src={url} alt={name} />
+      return <img style={media} src={url} alt={name} />
     case 'pdf':
-      return <iframe className="preview__pdf" src={url} title={name} />
+      return <iframe style={pdf} src={url} title={name} />
     case 'video':
-      return <video className="preview__media" src={url} controls />
+      return <video style={media} src={url} controls />
     case 'audio':
-      return <audio className="preview__audio" src={url} controls />
+      return <audio style={{ width: '100%' }} src={url} controls />
   }
+}
+
+function Details({ rel, name }: { rel: string; name: string }): ReactNode {
+  const stat = use(readStat(parentOf(rel), name))
+  if (!stat) return null
+  return (
+    <MetadataList title="Information">
+      <MetadataListItem label="Size">{formatSize(stat.size)}</MetadataListItem>
+      <MetadataListItem label="Modified">{new Date(stat.modifiedAt).toLocaleString()}</MetadataListItem>
+      <MetadataListItem label="Where">{parentOf(rel) || '/'}</MetadataListItem>
+    </MetadataList>
+  )
 }
 
 function describe(result: PreviewResult): string {
@@ -138,10 +178,10 @@ function describe(result: PreviewResult): string {
     case 'error':
       return ''
     case 'binary':
-      return formatSize(result.size)
+      return 'Binary'
     case 'text':
-      return `Text · ${formatSize(result.size)}`
+      return 'Text'
     default:
-      return `${result.blob.type} · ${formatSize(result.size)}`
+      return result.blob.type
   }
 }

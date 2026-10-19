@@ -75,9 +75,3 @@ export async function mediaUrl(blob: Blob): Promise<{ url: string; release: () =
   })
   return { url, release: () => {} }
 }
-
-/** Returns the directory holding a root-relative path, `""` for an entry at the root. */
-export function parentOf(rel: string): string {
-  const slash = rel.lastIndexOf('/')
-  return slash === -1 ? '' : rel.slice(0, slash)
-}

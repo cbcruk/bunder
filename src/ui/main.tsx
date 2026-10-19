@@ -2,13 +2,13 @@ import { Theme } from '@astryxdesign/core'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import FileExplorerPage from '../app/file-explorer/page'
 import { theme } from './astryx-theme'
-import { Finder } from './components/finder/finder'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Theme theme={theme}>
-      <Finder />
+      <FileExplorerPage />
     </Theme>
   </StrictMode>,
 )
