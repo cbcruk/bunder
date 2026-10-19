@@ -45,6 +45,7 @@ body {
 }
 
 .viewer__title {
+  overflow-wrap: anywhere;
   font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(1.6rem, 4vw, 2.3rem);
   font-weight: 600;

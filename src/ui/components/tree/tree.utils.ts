@@ -1,11 +1,12 @@
 import type { FinderPage } from '../../../bridge.types'
 import type { Entry, EntryStat } from '../../../fs/fs.types'
 import { bridge } from '../../bridge'
-import type { ListingResult } from './tree.types'
+import type { ListingResult, TreeKeyAction } from './tree.types'
 
 const listings = new Map<string, Map<number, Promise<ListingResult>>>()
 const stats = new Map<string, Map<string, Promise<EntryStat | null>>>()
 const listeners = new Map<string, Set<() => void>>()
+const ITEM = '[role="treeitem"]'
 
 ;(window as unknown as FinderPage).onDirChanged = rel => {
   evict(rel)
@@ -150,4 +151,64 @@ export function formatSize(bytes: number): string {
 /** Compresses a byte count logarithmically into `0`–`1`, reaching `1` around 10 MB. */
 export function sizeRatio(bytes: number): number {
   return Math.min(1, Math.log10(bytes + 1) / 7)
+}
+
+/**
+ * Works out what a key press on a tree item should do, following the WAI-ARIA tree view pattern.
+ *
+ * Reads the DOM rather than React state: collapsed folders render no children, so the
+ * `treeitem`s in document order are exactly the visible rows.
+ *
+ * | Key | Action |
+ * | --- | --- |
+ * | `ArrowDown` / `ArrowUp` | Next or previous visible item. |
+ * | `Home` / `End` | First or last visible item. |
+ * | `ArrowRight` | Expand a closed folder, or move into an open one. |
+ * | `ArrowLeft` | Collapse an open folder, or move to the parent. |
+ * | `Enter` / `Space` | Toggle a folder. |
+ *
+ * @example
+ * ```ts
+ * import { treeKeyAction } from './tree.utils'
+ *
+ * const tree = document.querySelector<HTMLElement>('[role="tree"]')!
+ * const item = document.activeElement as HTMLElement
+ * const action = treeKeyAction(tree, item, 'ArrowDown')
+ * if (action?.kind === 'focus') action.item.focus()
+ * ```
+ *
+ * @param tree The element holding `role="tree"`.
+ * @param item The focused `treeitem`.
+ * @param key The pressed key, as in `KeyboardEvent.key`.
+ * @returns What to do, or `null` when the key means nothing here and should keep its default.
+ */
+export function treeKeyAction(tree: HTMLElement, item: HTMLElement, key: string): TreeKeyAction | null {
+  const items = [...tree.querySelectorAll<HTMLElement>(ITEM)]
+  const index = items.indexOf(item)
+  const isDir = item.dataset.kind === 'dir'
+  const isOpen = item.getAttribute('aria-expanded') === 'true'
+  const move = (target: HTMLElement | null | undefined): TreeKeyAction | null =>
+    target ? { kind: 'focus', item: target } : { kind: 'none' }
+
+  switch (key) {
+    case 'ArrowDown':
+      return move(items[index + 1])
+    case 'ArrowUp':
+      return move(items[index - 1])
+    case 'Home':
+      return move(items[0])
+    case 'End':
+      return move(items.at(-1))
+    case 'ArrowRight':
+      if (!isDir) return { kind: 'none' }
+      return isOpen ? move(item.querySelector<HTMLElement>(ITEM)) : { kind: 'toggle' }
+    case 'ArrowLeft':
+      if (isDir && isOpen) return { kind: 'toggle' }
+      return move(item.parentElement?.closest<HTMLElement>(ITEM))
+    case 'Enter':
+    case ' ':
+      return isDir ? { kind: 'toggle' } : { kind: 'none' }
+    default:
+      return null
+  }
 }

@@ -19,6 +19,18 @@ export interface TreeProps {
   selected: string | null
   /** Called when a row is clicked: selects the entry and, for a directory, toggles it. */
   onActivate: (entry: Entry) => void
-  /** Called with `null` when the selected entry is no longer listed. */
-  onSelect: (rel: string | null) => void
+  /**
+   * Called when the selected entry is no longer shown, because it was deleted or a re-read pushed
+   * it past the loaded page, with the folder to select instead (`null` at the root).
+   */
+  onSelectionLost: (fallback: string | null) => void
 }
+
+/**
+ * What {@linkcode treeKeyAction} decided a key press should do.
+ *
+ * - `focus`: move focus, and with it the selection, to `item`.
+ * - `toggle`: expand or collapse the focused folder.
+ * - `none`: the key is handled but has nothing to do, such as `ArrowDown` on the last row.
+ */
+export type TreeKeyAction = { kind: 'focus'; item: HTMLElement } | { kind: 'toggle' } | { kind: 'none' }

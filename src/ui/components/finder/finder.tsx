@@ -1,10 +1,19 @@
-import { Suspense, use, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  Suspense,
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 
 import type { Entry } from '../../../fs/fs.types'
 import { bridge } from '../../bridge'
 import { Rail, Tree } from '../tree/tree'
-import { childOnPath, toggleOpen } from '../tree/tree.utils'
-import { treeKeyAction } from './finder.utils'
+import { childOnPath, toggleOpen, treeKeyAction } from '../tree/tree.utils'
 
 const rootPath = bridge.rootPath()
 
@@ -12,11 +21,27 @@ const rootPath = bridge.rootPath()
  * The whole window: the root path as a heading, the tree, and the preview pane beside it.
  *
  * Owns the expanded folders and the selected entry. Selection follows focus, as in Finder, and
- * collapsing a folder that holds the selection moves it to the folder.
+ * collapsing a folder that holds the selection moves it to the folder. When the selected row stops
+ * being shown, the selection moves to its folder and, if focus fell out of the tree with the row,
+ * focus follows.
  */
 export function Finder(): ReactNode {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
   const [selected, setSelected] = useState<string | null>(null)
+  const treeRef = useRef<HTMLDivElement>(null)
+  const refocus = useRef(false)
+
+  const onSelectionLost = useCallback((fallback: string | null) => {
+    const active = document.activeElement
+    refocus.current = active === null || active === document.body || !!treeRef.current?.contains(active)
+    setSelected(fallback)
+  }, [])
+
+  useEffect(() => {
+    if (!refocus.current) return
+    refocus.current = false
+    treeRef.current?.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]')?.focus()
+  }, [selected])
 
   const toggle = (rel: string): void => {
     if (open.has(rel)) setSelected(s => (s !== null && childOnPath(rel, s) !== null ? rel : s))
@@ -30,14 +55,13 @@ export function Finder(): ReactNode {
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     const item = event.target as HTMLElement
-    if (item.getAttribute('role') !== 'treeitem' || event.altKey || event.ctrlKey || event.metaKey) {
-      return
-    }
+    const rel = item.dataset.rel
+    if (rel === undefined || event.altKey || event.ctrlKey || event.metaKey) return
     const action = treeKeyAction(event.currentTarget, item, event.key)
     if (!action) return
 
     event.preventDefault()
-    if (action.kind === 'toggle') toggle(item.dataset.rel!)
+    if (action.kind === 'toggle') toggle(rel)
     if (action.kind === 'focus') action.item.focus()
   }
 
@@ -62,6 +86,7 @@ export function Finder(): ReactNode {
 
       <div className="viewer__body">
         <div
+          ref={treeRef}
           className="viewer__tree"
           role="tree"
           aria-label="File tree"
@@ -74,7 +99,7 @@ export function Finder(): ReactNode {
               open={open}
               selected={selected}
               onActivate={onActivate}
-              onSelect={setSelected}
+              onSelectionLost={onSelectionLost}
             />
           </Suspense>
         </div>
