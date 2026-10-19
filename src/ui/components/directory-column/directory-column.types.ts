@@ -15,6 +15,8 @@ export interface ColumnView {
 export interface DirectoryColumnProps {
   /** The directory the column lists, relative to the root. */
   rel: string
+  /** The folder's name as assistive technology should hear it, such as the root's own name. */
+  label: string
   /** The entry of this directory on the selected path, or `null` when none is. */
   selected: string | null
   /** Called when an entry is clicked or focused. */

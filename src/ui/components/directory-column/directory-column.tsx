@@ -15,6 +15,7 @@ import {
   Suspense,
   use,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useTransition,
@@ -56,6 +57,7 @@ export function DirectoryColumn(props: DirectoryColumnProps): ReactNode {
 
 function ColumnBody({
   rel,
+  label,
   selected,
   onSelect,
   onSelectionLost,
@@ -153,7 +155,7 @@ function ColumnBody({
 
   return (
     <VStack gap={2}>
-      <List ref={listRef} density="compact" onKeyDown={handleKeyDown} onFocus={onFocus}>
+      <List ref={listRef} density="compact" onKeyDown={handleKeyDown} onFocus={onFocus} aria-label={label}>
         {entries.map(entry => (
           <Row key={entry.rel} entry={entry} isSelected={entry.rel === selected} onSelect={onSelect} />
         ))}
@@ -178,9 +180,26 @@ interface RowProps {
   onSelect: (entry: Entry) => void
 }
 
+const KIND_NAMES = { dir: 'folder', link: 'link', file: null } as const
+
+// ListItem gives its focusable inner button no way to carry state: aria-current lands on the <li>,
+// which a screen reader on the focused button never reaches. Until Astryx forwards it, set the
+// state and the entry's kind on the button directly; React renders neither attribute there.
 const Row = memo(function Row({ entry, isSelected, onSelect }: RowProps): ReactNode {
+  const rowRef = useRef<HTMLLIElement>(null)
+
+  useLayoutEffect(() => {
+    const button = rowRef.current?.querySelector('button')
+    if (!button) return
+    const kind = KIND_NAMES[entry.kind]
+    button.setAttribute('aria-label', kind ? `${entry.name}, ${kind}` : entry.name)
+    if (isSelected) button.setAttribute('aria-current', 'true')
+    else button.removeAttribute('aria-current')
+  }, [entry, isSelected])
+
   return (
     <ListItem
+      ref={rowRef}
       label={entry.name}
       data-rel={entry.rel}
       data-kind={entry.kind}
