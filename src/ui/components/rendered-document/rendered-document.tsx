@@ -1,7 +1,18 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
 import type { RenderedDocumentProps } from './rendered-document.types'
 import { buildSrcdoc } from './rendered-document.utils'
+
+const frame: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  height: '70vh',
+  border: 'var(--border-width) solid var(--color-border)',
+  borderRadius: 'var(--radius-element)',
+}
+
+// A page that sets no background of its own expects white, whatever the app's colour scheme.
+const htmlFrame: CSSProperties = { ...frame, colorScheme: 'light', background: 'Canvas' }
 
 /**
  * Renders an HTML or Markdown document in a frame that can neither run script nor reach anything.
@@ -15,8 +26,7 @@ export function RenderedDocument({ format, text, title }: RenderedDocumentProps)
   const srcDoc = useMemo(() => buildSrcdoc(format, text), [format, text])
   return (
     <iframe
-      className="preview__rendered"
-      data-format={format}
+      style={format === 'html' ? htmlFrame : frame}
       sandbox=""
       srcDoc={srcDoc}
       title={title}
