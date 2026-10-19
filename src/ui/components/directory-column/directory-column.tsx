@@ -26,7 +26,7 @@ import {
 
 import { PAGE_SIZE, type Entry } from '../../../fs/fs.types'
 import type { ColumnView, DirectoryColumnProps } from './directory-column.types'
-import { readListing, watchListing } from './directory-column.utils'
+import { focusAndSelect, readListing, watchListing } from './directory-column.utils'
 
 const ITEM = 'li[data-rel] button'
 const column: CSSProperties = { flexShrink: 0, overflowY: 'auto' }
@@ -38,10 +38,11 @@ const column: CSSProperties = { flexShrink: 0, overflowY: 'auto' }
  * so the old entries stay until the new ones arrive. Large directories arrive
  * {@linkcode PAGE_SIZE} entries at a time behind a "Show more" button.
  *
- * Arrow keys and PageUp/PageDown move within the column through `useListFocus`. The column keeps
- * one tab stop, on whichever row last had focus however it got there, and selection follows focus
- * unless the focus was restored by {@linkcode focusQuietly}. Moving between columns is the page's
- * job.
+ * Arrow keys and PageUp/PageDown move within the column through `useListFocus`, and the row they
+ * land on is selected. Focus arriving from outside the column selects only when marked by
+ * {@linkcode focusAndSelect}, so Tab and Shift+Tab move between columns without changing the
+ * selection. The column keeps one tab stop: the row on the selected path when there is one,
+ * otherwise whichever row last had focus. Moving between columns is the page's job.
  */
 export function DirectoryColumn(props: DirectoryColumnProps): ReactNode {
   return (
@@ -98,14 +99,24 @@ function ColumnBody({
     }
     if (result.listing.entries.length <= from) return
     focusFrom.current = null
-    getItems()[from]?.focus()
+    const item = getItems()[from]
+    if (item) focusAndSelect(item)
   }, [result, getItems])
 
   useEffect(() => {
     if (!isEntering) return
     onEntered()
-    getItems()[0]?.focus()
+    const first = getItems()[0]
+    if (first) focusAndSelect(first)
   }, [isEntering, onEntered, getItems])
+
+  useEffect(() => {
+    if (selected === null) return
+    const items = getItems()
+    const onPath = items.find(item => item.closest<HTMLElement>('li[data-rel]')?.dataset.rel === selected)
+    if (!onPath || items.some(item => item === document.activeElement)) return
+    for (const item of items) item.tabIndex = item === onPath ? 0 : -1
+  }, [selected, result, getItems])
 
   if (!result.ok) {
     return (
@@ -123,10 +134,10 @@ function ColumnBody({
     handleFocus(event)
     const target = event.target as HTMLElement
     for (const item of getItems()) item.tabIndex = item === target ? 0 : -1
-    if (target.dataset.quiet) {
-      delete target.dataset.quiet
-      return
-    }
+    const marked = target.dataset.select === 'true'
+    delete target.dataset.select
+    const fromWithin = event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)
+    if (!marked && !fromWithin) return
     const rel = target.closest<HTMLElement>('li[data-rel]')?.dataset.rel
     const entry = rel === undefined ? undefined : byRel.get(rel)
     if (entry) onSelect(entry)
