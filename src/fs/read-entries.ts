@@ -1,47 +1,47 @@
-import { lstat, readdir } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
-import { MAX_ENTRIES, type DirListing, type Entry, type EntryKind } from './fs.types'
+import { PAGE_SIZE, type DirListing, type Entry, type EntryKind } from './fs.types'
 import { safeResolve, toPosix } from './safe-resolve'
 
 /**
- * Lists the visible entries of a directory under the root, directories first.
+ * Lists the first visible entries of a directory under the root, directories first.
  *
- * Dotfiles are hidden. Entries are inspected with `lstat`, so a symbolic link is reported as a link
- * instead of being followed, which also rules out link cycles. An entry that vanishes or becomes
- * unreadable between `readdir` and `lstat` is dropped.
+ * Dotfiles are hidden. Kinds come from the `Dirent`s `readdir` returns, so listing costs no `lstat`
+ * per entry; sizes and times are left to {@linkcode statEntries}. A symbolic link is reported as a
+ * link instead of being followed, which also rules out link cycles.
+ *
+ * The whole directory is read and sorted on every call, since the order depends on every name, but
+ * only the first `limit` entries cross the bridge.
  *
  * @param root The explorer root, already passed through `realpath`.
  * @param rel The directory to list, relative to `root`.
+ * @param limit How many entries to return; rounded up to a positive multiple of
+ * {@linkcode PAGE_SIZE}.
  * @throws {ForbiddenPath} When `rel` resolves outside `root`.
  */
-export async function readEntries(root: string, rel: string): Promise<DirListing> {
+export async function readEntries(root: string, rel: string, limit: number): Promise<DirListing> {
   const abs = await safeResolve(root, rel)
-  const visible = (await readdir(abs, { withFileTypes: true })).filter(d => !d.name.startsWith('.'))
-
-  const rows = await Promise.all(
-    visible.slice(0, MAX_ENTRIES).map(async (d): Promise<Entry | null> => {
-      const child = path.join(abs, d.name)
-      const s = await lstat(child).catch(() => null)
-      if (!s) return null
-      const kind: EntryKind = s.isSymbolicLink() ? 'link' : s.isDirectory() ? 'dir' : 'file'
-      return {
+  const visible = (await readdir(abs, { withFileTypes: true }))
+    .filter(d => !d.name.startsWith('.'))
+    .map(
+      (d): Entry => ({
         name: d.name,
-        rel: toPosix(path.relative(root, child)),
-        kind,
-        size: s.size,
-        modifiedAt: s.mtime.toISOString(),
-      }
-    }),
-  )
+        rel: toPosix(path.relative(root, path.join(abs, d.name))),
+        kind: d.isSymbolicLink() ? 'link' : d.isDirectory() ? 'dir' : 'file',
+      }),
+    )
+    .sort(compareEntries)
 
-  return {
-    entries: rows.filter((r): r is Entry => r !== null).sort(compareEntries),
-    omitted: Math.max(0, visible.length - MAX_ENTRIES),
-  }
+  return { entries: visible.slice(0, pageLimit(limit)), total: visible.length }
+}
+
+function pageLimit(limit: number): number {
+  const pages = Number.isFinite(limit) ? Math.ceil(limit / PAGE_SIZE) : 1
+  return Math.max(1, pages) * PAGE_SIZE
 }
 
 function compareEntries(a: Entry, b: Entry): number {
-  const rank = (e: Entry): number => (e.kind === 'dir' ? 0 : 1)
-  return rank(a) - rank(b) || a.name.localeCompare(b.name)
+  const rank = (kind: EntryKind): number => (kind === 'dir' ? 0 : 1)
+  return rank(a.kind) - rank(b.kind) || a.name.localeCompare(b.name)
 }

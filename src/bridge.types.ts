@@ -1,4 +1,4 @@
-import type { DirListing } from './fs/fs.types'
+import type { DirListing, EntryStat } from './fs/fs.types'
 
 /**
  * Functions `src/main.ts` exposes to the page through barlo.
@@ -9,8 +9,14 @@ import type { DirListing } from './fs/fs.types'
 export interface FinderBridge {
   /** Absolute path of the directory being explored. */
   rootPath(): Promise<string>
-  /** Lists a directory relative to the root. Rejects when it is unreadable or outside the root. */
-  readDir(rel: string): Promise<DirListing>
+  /**
+   * Lists the first `limit` entries of a directory relative to the root, without sizes or times.
+   *
+   * Rejects when the directory is unreadable or outside the root.
+   */
+  readDir(rel: string, limit: number): Promise<DirListing>
+  /** Reads sizes and times for entries of one directory; unreadable names are left out. */
+  statEntries(rel: string, names: string[]): Promise<Record<string, EntryStat>>
   /**
    * Starts reporting changes to a directory through {@linkcode FinderPage.onDirChanged}.
    *

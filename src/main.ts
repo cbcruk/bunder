@@ -5,6 +5,7 @@ import path from 'node:path'
 import type { FinderBridge, FinderPage } from './bridge.types'
 import { createDirWatcher } from './fs/dir-watcher'
 import { readEntries } from './fs/read-entries'
+import { statEntries } from './fs/stat-entries'
 import index from './ui/index.html'
 
 const rootInput = process.argv[2] ?? Bun.env.EXPLORER_ROOT ?? process.cwd()
@@ -20,7 +21,8 @@ const watcher = createDirWatcher(root, rel => {
 
 const bridge: FinderBridge = {
   rootPath: async () => root,
-  readDir: rel => readEntries(root, rel),
+  readDir: (rel, limit) => readEntries(root, rel, limit),
+  statEntries: (rel, names) => statEntries(root, rel, names),
   watchDir: rel => watcher.watch(rel),
   unwatchDir: async rel => watcher.unwatch(rel),
 }
