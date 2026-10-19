@@ -1,13 +1,21 @@
+import type { FinderPage } from '../../../bridge.types'
 import { bridge } from '../../bridge'
 import type { ListingResult } from './tree.types'
 
 const listings = new Map<string, Promise<ListingResult>>()
+const listeners = new Map<string, Set<() => void>>()
+
+;(window as unknown as FinderPage).onDirChanged = rel => {
+  listings.delete(rel)
+  for (const listener of listeners.get(rel) ?? []) listener()
+}
 
 /**
  * Reads a directory through the bridge once and returns the same promise on later calls.
  *
  * `use()` needs a stable promise per render, so the cache is what lets {@linkcode Tree} suspend on
- * it. Entries are never evicted; reopening a folder shows what it held the first time.
+ * it. An entry lives until the directory changes on disk or the last {@linkcode watchListing} for it
+ * ends, so a folder reopened later is read afresh.
  */
 export function readListing(rel: string): Promise<ListingResult> {
   let pending = listings.get(rel)
@@ -22,6 +30,29 @@ export function readListing(rel: string): Promise<ListingResult> {
     listings.set(rel, pending)
   }
   return pending
+}
+
+/**
+ * Watches a directory on disk and calls `onChange` after its cached listing has been dropped.
+ *
+ * Meant to be returned from an effect: the returned cleanup stops the watch, and once no watcher
+ * remains for `rel` its cache entry is evicted too.
+ *
+ * @returns A function that stops watching.
+ */
+export function watchListing(rel: string, onChange: () => void): () => void {
+  let set = listeners.get(rel)
+  if (!set) listeners.set(rel, (set = new Set()))
+  set.add(onChange)
+  bridge.watchDir(rel).catch(() => {})
+
+  return () => {
+    set.delete(onChange)
+    bridge.unwatchDir(rel).catch(() => {})
+    if (set.size > 0) return
+    listeners.delete(rel)
+    listings.delete(rel)
+  }
 }
 
 /**
