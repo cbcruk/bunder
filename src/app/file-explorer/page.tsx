@@ -54,6 +54,7 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
 export default function FileExplorerPage(): ReactNode {
   const [selection, setSelection] = useState<Selection | null>(null)
   const [entering, setEntering] = useState<string | null>(null)
+  const [rootName, setRootName] = useState('Root')
   const columnsRef = useRef<HTMLElement>(null)
   const refocus = useRef(false)
   const columns = columnsFor(selection)
@@ -70,6 +71,10 @@ export default function FileExplorerPage(): ReactNode {
   }, [])
 
   const onEntered = useCallback(() => setEntering(null), [])
+
+  useEffect(() => {
+    void rootPath.then(path => setRootName(baseName(path, path) || path))
+  }, [])
   useFollowEnd(columnsRef)
 
   useEffect(() => {
@@ -154,6 +159,7 @@ export default function FileExplorerPage(): ReactNode {
               <DirectoryColumn
                 key={col.dir}
                 rel={col.dir}
+                label={baseName(col.dir, rootName)}
                 selected={col.selected}
                 onSelect={onSelect}
                 onSelectionLost={onSelectionLost}
@@ -162,7 +168,7 @@ export default function FileExplorerPage(): ReactNode {
               />
             ))}
             {file && (
-              <Section padding={6} variant="transparent" style={detailColumn} aria-label="Preview">
+              <Section padding={6} variant="transparent" style={detailColumn} role="region" aria-label="Preview">
                 <Preview key={file.rel} rel={file.rel} />
               </Section>
             )}
