@@ -57,7 +57,12 @@ export function Tree({ rel, open, selected, onActivate, onSelectionLost }: TreeP
 
   useEffect(() => {
     const from = focusFrom.current
-    if (from === null || !result.ok || result.listing.entries.length <= from) return
+    if (from === null) return
+    if (!result.ok) {
+      focusFrom.current = null
+      return
+    }
+    if (result.listing.entries.length <= from) return
     focusFrom.current = null
     listRef.current?.querySelectorAll<HTMLElement>(':scope > [role="treeitem"]')[from]?.focus()
   }, [result])
