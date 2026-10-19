@@ -98,12 +98,24 @@ export function watchListing(rel: string, onChange: () => void): () => void {
 /**
  * Moves focus to a row without selecting it.
  *
- * Selection follows focus, so restoring focus after the selected row vanished would otherwise
- * select, and open, whatever row focus lands on. The column's focus handler sees the mark and only
- * updates its tab stop.
+ * Used to put focus back after the selected row vanished, where selecting the row focus lands on
+ * would open a folder nobody asked for. Plain `focus()` behaves the same unless focus came from
+ * elsewhere in the row's own column; see {@linkcode focusAndSelect}.
  */
 export function focusQuietly(row: HTMLElement): void {
-  row.dataset.quiet = 'true'
+  delete row.dataset.select
+  row.focus()
+}
+
+/**
+ * Moves focus to a row and selects it, as a move the user asked for.
+ *
+ * A column selects the row that gains focus only when focus moved within that column, so that
+ * tabbing between columns leaves the selection alone. Moves across columns that should select,
+ * such as Left and Right, mark the row first; the column's focus handler consumes the mark.
+ */
+export function focusAndSelect(row: HTMLElement): void {
+  row.dataset.select = 'true'
   row.focus()
 }
 

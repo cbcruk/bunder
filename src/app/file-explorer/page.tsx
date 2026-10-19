@@ -22,7 +22,11 @@ import {
 import type { Entry } from '../../fs/fs.types'
 import { bridge } from '../../ui/bridge'
 import { DirectoryColumn } from '../../ui/components/directory-column/directory-column'
-import { focusQuietly, parentOf } from '../../ui/components/directory-column/directory-column.utils'
+import {
+  focusAndSelect,
+  focusQuietly,
+  parentOf,
+} from '../../ui/components/directory-column/directory-column.utils'
 import { Preview } from '../../ui/components/preview/preview'
 import type { Selection } from './page.types'
 import { baseName, columnKeyTarget, columnsFor } from './page.utils'
@@ -40,7 +44,8 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
  *
  * Each column lists one directory on the path to the selection; selecting a folder opens its
  * contents in the next column. Up and Down move within a column, Right enters a folder's column
- * and Left returns, with selection following focus. Right on a folder whose column is still loading
+ * and Left returns, with selection following focus. Tab and Shift+Tab only move focus between
+ * columns and never change the selection. Right on a folder whose column is still loading
  * enters it once the rows arrive. When the selected entry disappears, the selection moves to its
  * folder, and focus is put back without selecting anything if it fell out of the window with the
  * row. The newest column, or the preview, is scrolled into view whenever the selection changes,
@@ -89,7 +94,7 @@ export default function FileExplorerPage(): ReactNode {
     const target = columnKeyTarget(columnsRef.current, from, event.key)
     if (target) {
       event.preventDefault()
-      target.focus()
+      focusAndSelect(target)
       return
     }
     const row = from.closest<HTMLElement>('li[data-rel]')
