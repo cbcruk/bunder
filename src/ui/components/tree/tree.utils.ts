@@ -1,11 +1,12 @@
 import type { FinderPage } from '../../../bridge.types'
 import type { Entry, EntryStat } from '../../../fs/fs.types'
 import { bridge } from '../../bridge'
-import type { ListingResult } from './tree.types'
+import type { ListingResult, TreeKeyAction } from './tree.types'
 
 const listings = new Map<string, Map<number, Promise<ListingResult>>>()
 const stats = new Map<string, Map<string, Promise<EntryStat | null>>>()
 const listeners = new Map<string, Set<() => void>>()
+const ITEM = '[role="treeitem"]'
 
 ;(window as unknown as FinderPage).onDirChanged = rel => {
   evict(rel)
@@ -110,6 +111,30 @@ export function toggleOpen(open: ReadonlySet<string>, target: string): Set<strin
   return next
 }
 
+/**
+ * Finds the direct child of `dir` that lies on the path to `target`.
+ *
+ * @param dir A root-relative directory; `""` is the root.
+ * @param target A root-relative path.
+ * @returns The child's root-relative path, or `null` when `target` is not strictly below `dir`.
+ *
+ * @example
+ * ```ts
+ * import { childOnPath } from './tree.utils'
+ *
+ * childOnPath('src', 'src/ui/main.tsx') // 'src/ui'
+ * childOnPath('', 'README.md') // 'README.md'
+ * childOnPath('src', 'src') // null
+ * ```
+ */
+export function childOnPath(dir: string, target: string): string | null {
+  const prefix = dir === '' ? '' : `${dir}/`
+  if (!target.startsWith(prefix) || target === dir) return null
+  const rest = target.slice(prefix.length)
+  const slash = rest.indexOf('/')
+  return prefix + (slash === -1 ? rest : rest.slice(0, slash))
+}
+
 /** Formats a byte count with a binary unit, such as `"4.2 KB"`. */
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -126,4 +151,64 @@ export function formatSize(bytes: number): string {
 /** Compresses a byte count logarithmically into `0`–`1`, reaching `1` around 10 MB. */
 export function sizeRatio(bytes: number): number {
   return Math.min(1, Math.log10(bytes + 1) / 7)
+}
+
+/**
+ * Works out what a key press on a tree item should do, following the WAI-ARIA tree view pattern.
+ *
+ * Reads the DOM rather than React state: collapsed folders render no children, so the
+ * `treeitem`s in document order are exactly the visible rows.
+ *
+ * | Key | Action |
+ * | --- | --- |
+ * | `ArrowDown` / `ArrowUp` | Next or previous visible item. |
+ * | `Home` / `End` | First or last visible item. |
+ * | `ArrowRight` | Expand a closed folder, or move into an open one. |
+ * | `ArrowLeft` | Collapse an open folder, or move to the parent. |
+ * | `Enter` / `Space` | Toggle a folder. |
+ *
+ * @example
+ * ```ts
+ * import { treeKeyAction } from './tree.utils'
+ *
+ * const tree = document.querySelector<HTMLElement>('[role="tree"]')!
+ * const item = document.activeElement as HTMLElement
+ * const action = treeKeyAction(tree, item, 'ArrowDown')
+ * if (action?.kind === 'focus') action.item.focus()
+ * ```
+ *
+ * @param tree The element holding `role="tree"`.
+ * @param item The focused `treeitem`.
+ * @param key The pressed key, as in `KeyboardEvent.key`.
+ * @returns What to do, or `null` when the key means nothing here and should keep its default.
+ */
+export function treeKeyAction(tree: HTMLElement, item: HTMLElement, key: string): TreeKeyAction | null {
+  const items = [...tree.querySelectorAll<HTMLElement>(ITEM)]
+  const index = items.indexOf(item)
+  const isDir = item.dataset.kind === 'dir'
+  const isOpen = item.getAttribute('aria-expanded') === 'true'
+  const move = (target: HTMLElement | null | undefined): TreeKeyAction | null =>
+    target ? { kind: 'focus', item: target } : { kind: 'none' }
+
+  switch (key) {
+    case 'ArrowDown':
+      return move(items[index + 1])
+    case 'ArrowUp':
+      return move(items[index - 1])
+    case 'Home':
+      return move(items[0])
+    case 'End':
+      return move(items.at(-1))
+    case 'ArrowRight':
+      if (!isDir) return { kind: 'none' }
+      return isOpen ? move(item.querySelector<HTMLElement>(ITEM)) : { kind: 'toggle' }
+    case 'ArrowLeft':
+      if (isDir && isOpen) return { kind: 'toggle' }
+      return move(item.parentElement?.closest<HTMLElement>(ITEM))
+    case 'Enter':
+    case ' ':
+      return isDir ? { kind: 'toggle' } : { kind: 'none' }
+    default:
+      return null
+  }
 }
