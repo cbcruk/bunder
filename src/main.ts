@@ -7,7 +7,6 @@ import { createDirWatcher } from './fs/dir-watcher'
 import { inspectFile } from './fs/inspect-file'
 import { readEntries } from './fs/read-entries'
 import { statEntries } from './fs/stat-entries'
-import { setInputFiles } from './set-input-files'
 import index from './ui/index.html'
 
 const rootInput = process.argv[2] ?? Bun.env.EXPLORER_ROOT ?? process.cwd()
@@ -16,10 +15,6 @@ if (!root) {
   console.error(`Cannot open ${rootInput}`)
   process.exit(1)
 }
-
-// Known once the app page has loaded; before that the window is still on barlo's blank page, whose
-// origin can read as "null".
-const appOrigin = Promise.withResolvers<string>()
 
 const watcher = createDirWatcher(root, rel => {
   void app.evaluate((rel: string) => (window as unknown as FinderPage).onDirChanged?.(rel), rel)
@@ -34,7 +29,9 @@ const bridge: FinderBridge = {
   provideFile: async (rel, inputId) => {
     const { abs, info } = await inspectFile(root, rel)
     if (info.kind === 'dir') return info
-    await setInputFiles(app.mainWindow().unwrap(), await appOrigin.promise, inputId, abs)
+    if (!/^[\w-]+$/.test(inputId)) throw new Error(`Not a plain element id: ${inputId}`)
+    const provided = await app.provideFile(`#${inputId}`, [abs])
+    if (provided.isErr()) throw new Error(provided.error.message)
     return info
   },
 }
@@ -67,4 +64,3 @@ if (loaded.isErr()) {
   console.error(loaded.error.message)
   app.exit()
 }
-appOrigin.resolve((await app.evaluate<string>('location.origin')).unwrap())

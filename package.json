@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "barlo": "^0.1.2",
+    "barlo": "^0.1.3",
     "dompurify": "^3.4.17",
     "marked": "^18.1.1",
     "react": "^19.1.1",
