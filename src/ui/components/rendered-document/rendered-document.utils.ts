@@ -126,7 +126,8 @@ export function defuse(html: string): HTMLElement {
   const parsed = new DOMParser().parseFromString(html, 'text/html')
   for (const el of parsed.querySelectorAll('a, area')) {
     const href = el.getAttribute('href') ?? el.getAttribute('xlink:href')
-    if (href && !el.hasAttribute('title')) el.setAttribute('title', href)
+    const title = el.getAttribute('title')
+    if (href) el.setAttribute('title', title ? `${title} (${href})` : href)
   }
   const root = DOMPurify.sanitize(parsed.documentElement.outerHTML, {
     WHOLE_DOCUMENT: true,
