@@ -66,6 +66,7 @@ export default function FileExplorerPage(): ReactNode {
 
   useEffect(() => {
     columnsRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    setEntering(pending => (pending !== null && pending !== selection?.rel ? null : pending))
   }, [selection])
 
   useEffect(() => {

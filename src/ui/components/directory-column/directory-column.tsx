@@ -167,7 +167,6 @@ interface RowProps {
   onSelect: (entry: Entry) => void
 }
 
-// Memoised so that moving the selection re-renders two rows, not every row of a long column.
 const Row = memo(function Row({ entry, isSelected, onSelect }: RowProps): ReactNode {
   return (
     <ListItem
