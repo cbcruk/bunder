@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
+import { RenderedDocument } from '../rendered-document/rendered-document'
+import { renderFormatOf } from '../rendered-document/rendered-document.utils'
 import { formatSize, watchListing } from '../tree/tree.utils'
 import type { PreviewProps, PreviewResult } from './preview.types'
 import { loadPreview, mediaUrl, parentOf, TEXT_LIMIT } from './preview.utils'
@@ -51,7 +53,7 @@ function Body({ name, result }: { name: string; result: PreviewResult }): ReactN
     case 'text':
       return (
         <>
-          <pre className="preview__text">{result.text}</pre>
+          <TextView name={name} text={result.text} />
           {result.truncated && (
             <p className="preview__note">Showing the first {formatSize(TEXT_LIMIT)}.</p>
           )}
@@ -64,6 +66,31 @@ function Body({ name, result }: { name: string; result: PreviewResult }): ReactN
     default:
       return <Media kind={result.kind} blob={result.blob} name={name} />
   }
+}
+
+function TextView({ name, text }: { name: string; text: string }): ReactNode {
+  const format = renderFormatOf(name)
+  const [rendered, setRendered] = useState(false)
+
+  if (!format) return <pre className="preview__text">{text}</pre>
+
+  return (
+    <>
+      <div className="preview__modes" role="group" aria-label="View">
+        <button type="button" aria-pressed={!rendered} onClick={() => setRendered(false)}>
+          Source
+        </button>
+        <button type="button" aria-pressed={rendered} onClick={() => setRendered(true)}>
+          Rendered
+        </button>
+      </div>
+      {rendered ? (
+        <RenderedDocument format={format} text={text} title={name} />
+      ) : (
+        <pre className="preview__text">{text}</pre>
+      )}
+    </>
+  )
 }
 
 interface MediaProps {
