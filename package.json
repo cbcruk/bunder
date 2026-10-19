@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "barlo": "^0.1.1",
+    "barlo": "^0.1.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       barlo:
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.1.2
+        version: 0.1.2
       react:
         specifier: ^19.1.1
         version: 19.2.8
@@ -47,8 +47,8 @@ packages:
   '@types/react@19.2.17':
     resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
 
-  barlo@0.1.1:
-    resolution: {integrity: sha512-sGB2TGIxJIBq8gFu8fl7pdXN9XHDtU8ATtu1LGLWs4Upk5qq4ph1z1cYpttYF5tuXCw3La6BNdX8d1iUVrnT0A==}
+  barlo@0.1.2:
+    resolution: {integrity: sha512-8YHKnBCoOYnhYRoFv10CzGW5OhAkzfz+FnmXqaFX6Rh5OLR+TwaLs34OgVD7X/AbuV0fMaHBOavu3qT64fK/Lw==}
     engines: {bun: '>=1.3.12'}
 
   better-result@3.0.1:
@@ -98,7 +98,7 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  barlo@0.1.1:
+  barlo@0.1.2:
     dependencies:
       better-result: 3.0.1
 
