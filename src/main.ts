@@ -2,7 +2,8 @@ import { launch } from 'barlo'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { FinderBridge } from './bridge.types'
+import type { FinderBridge, FinderPage } from './bridge.types'
+import { createDirWatcher } from './fs/dir-watcher'
 import { readEntries } from './fs/read-entries'
 import index from './ui/index.html'
 
@@ -13,9 +14,15 @@ if (!root) {
   process.exit(1)
 }
 
+const watcher = createDirWatcher(root, rel => {
+  void app.evaluate((rel: string) => (window as unknown as FinderPage).onDirChanged?.(rel), rel)
+})
+
 const bridge: FinderBridge = {
   rootPath: async () => root,
   readDir: rel => readEntries(root, rel),
+  watchDir: rel => watcher.watch(rel),
+  unwatchDir: async rel => watcher.unwatch(rel),
 }
 
 // barlo cannot serve an HTMLBundle itself, so Bun's own server bundles the UI and barlo proxies it.
@@ -30,6 +37,7 @@ if (launched.isErr()) {
 
 const app = launched.unwrap()
 app.onExit(() => {
+  watcher.close()
   ui.stop(true)
   process.exit(0)
 })

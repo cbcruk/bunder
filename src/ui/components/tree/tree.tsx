@@ -1,17 +1,31 @@
-import { Suspense, use, type CSSProperties, type ReactNode } from 'react'
+import {
+  startTransition,
+  Suspense,
+  use,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import type { Entry } from '../../../fs/fs.types'
 import type { TreeProps } from './tree.types'
-import { formatSize, readListing, sizeRatio } from './tree.utils'
+import { formatSize, readListing, sizeRatio, watchListing } from './tree.utils'
 
 /**
  * Renders one directory and, recursively, every expanded directory beneath it.
  *
  * Each expanded child gets its own `Suspense` boundary, so a slow directory holds up only its own
- * subtree.
+ * subtree. While mounted, the directory is watched on disk; a change is re-read in a transition, so
+ * the old entries stay on screen until the new ones arrive.
  */
 export function Tree({ rel, open, onToggle }: TreeProps): ReactNode {
-  const result = use(readListing(rel))
+  const [pending, setPending] = useState(() => readListing(rel))
+  useEffect(
+    () => watchListing(rel, () => startTransition(() => setPending(readListing(rel)))),
+    [rel],
+  )
+  const result = use(pending)
 
   if (!result.ok) return <p className="tree__error">Cannot read this folder: {result.message}</p>
 
