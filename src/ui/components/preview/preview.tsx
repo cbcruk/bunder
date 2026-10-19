@@ -74,6 +74,7 @@ interface MediaProps {
 
 function Media({ kind, blob, name }: MediaProps): ReactNode {
   const [url, setUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let release: (() => void) | null = null
@@ -82,13 +83,14 @@ function Media({ kind, blob, name }: MediaProps): ReactNode {
       if (!live) return made.release()
       release = made.release
       setUrl(made.url)
-    }, () => {})
+    }, () => live && setFailed(true))
     return () => {
       live = false
       release?.()
     }
   }, [blob])
 
+  if (failed) return <p className="preview__error">Cannot read this file.</p>
   if (!url) return null
   switch (kind) {
     case 'image':

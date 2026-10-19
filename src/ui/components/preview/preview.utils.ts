@@ -4,6 +4,9 @@ import type { PreviewResult } from './preview.types'
 /** How much of a text file the preview reads and shows. */
 export const TEXT_LIMIT = 256 * 1024
 
+/** Largest SVG drawn as an image; {@linkcode mediaUrl} copies an SVG into memory as a `data:` URL. */
+export const SVG_LIMIT = 8 * 1024 * 1024
+
 let nextInput = 0
 
 /**
@@ -31,19 +34,16 @@ export async function loadPreview(rel: string): Promise<PreviewResult> {
     const file = input.files?.[0]
     if (!file) return { kind: 'error', message: 'The file did not arrive.' }
 
-    switch (info.kind) {
-      case 'text':
-        return {
-          kind: 'text',
-          text: await file.slice(0, TEXT_LIMIT).text(),
-          size: file.size,
-          truncated: file.size > TEXT_LIMIT,
-        }
-      case 'binary':
-        return { kind: 'binary', size: file.size }
-      default:
-        return { kind: info.kind, blob: file.slice(0, file.size, info.mime), size: file.size }
+    if (info.kind === 'text' || (info.mime === 'image/svg+xml' && file.size > SVG_LIMIT)) {
+      return {
+        kind: 'text',
+        text: await file.slice(0, TEXT_LIMIT).text(),
+        size: file.size,
+        truncated: file.size > TEXT_LIMIT,
+      }
     }
+    if (info.kind === 'binary') return { kind: 'binary', size: file.size }
+    return { kind: info.kind, blob: file.slice(0, file.size, info.mime), size: file.size }
   } catch (error) {
     return { kind: 'error', message: error instanceof Error ? error.message : String(error) }
   } finally {
