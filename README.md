@@ -1,30 +1,38 @@
-# RSC 파일 트리 뷰어
+# Finder
 
-읽기 전용. 재귀 서버 컴포넌트 + `searchParams` 기반 펼침 상태.
-클라이언트 컴포넌트는 `next/link` 하나뿐이고, 직접 작성한 클라이언트 코드는 없다.
+읽기 전용 파일 트리 로컬 앱. [barlo](https://github.com/cbcruk/barlo)로 이미 설치된 Chrome을 앱 창으로 띄우고, 파일시스템은 Bun 쪽에서 읽는다.
 
 ## 실행
 
 ```bash
 pnpm install
-EXPLORER_ROOT=/보여줄/폴더 pnpm dev
+pnpm start /보여줄/폴더      # 또는 EXPLORER_ROOT=/보여줄/폴더 pnpm start
+pnpm compile                 # out/finder 단일 실행 파일 (Node·node_modules 불필요, 로컬 Chrome 필요)
+./out/finder /보여줄/폴더
 ```
 
-`EXPLORER_ROOT`를 생략하면 `process.cwd()`가 루트가 된다.
-`app/`과 `lib/`를 다른 Next.js App Router 프로젝트에 얹을 때는 `tsconfig.json`에 `"@/*": ["./*"]` 경로 별칭만 추가하면 된다.
+경로를 생략하면 현재 디렉터리가 루트가 된다.
 
-## 설계 결정 세 가지
+## 구조
 
-**펼침 상태는 깊이가 아니라 열린 경로 집합이다.** `Tree`가 자식으로 내려가는 조건은 `open.has(entry.rel)` 하나뿐이다. 그래서 `MAX_DEPTH` 가드가 없다 — 재귀 폭이 URL에 담긴 경로 수에 선형으로 묶이고, 그 수는 `parseOpen`에서 `MAX_OPEN`으로 잘린다. 방어선을 한 곳에 모은 셈이다.
+```
+src/main.ts          Bun 진입점: Chrome 실행, UI 서빙, 브리지 함수 노출
+src/bridge.types.ts  페이지에 노출되는 함수의 계약 (FinderBridge)
+src/fs/              루트 검증(safe-resolve)과 디렉터리 읽기(read-entries)
+src/ui/              클라이언트 React. window.readDir()로 Bun을 호출
+```
 
-**`stat`이 아니라 `lstat`을 쓴다.** 심볼릭 링크를 따라가지 않으므로 순환 링크에 빠지지 않고, 링크를 링크로 표시할 수 있다. 읽기 전용 뷰어에서는 링크 대상을 몰래 펼치는 것보다 링크라고 말해 주는 편이 정직하다.
+- **UI 서빙:** barlo의 `serveEmbedded`는 Bun의 `HTMLBundle`을 받지 못한다. 그래서 `Bun.serve({ routes })`가 `index.html`을 번들하고 barlo는 `serveOrigin`으로 그 서버를 프록시한다. 이 방식은 `bun build --compile`에서도 그대로 동작한다.
+- **데이터:** 파일시스템 접근은 HTTP 핸들러가 아니라 `exposeFunction`(CDP 바인딩)으로만 한다. 결과는 JSON으로 오가므로 수정 시각은 ISO 문자열이다.
+- **펼침 상태:** 열린 경로 집합을 React state로 관리한다. 폴더를 접으면 그 아래에서 열려 있던 경로도 함께 지운다. 디렉터리 목록은 경로별 promise로 캐시하고, `use()`와 폴더별 `Suspense`로 렌더한다.
 
-**경로 검증은 `realpath` 이후에 한다.** `path.resolve`만으로는 루트 안에 심어진 심볼릭 링크를 통한 탈출을 못 막는다. 비교할 때 `startsWith(root + sep)`로 구분자까지 포함해야 `/data-secret`이 `/data`의 하위로 오인되지 않는다.
+## 유지한 결정
+
+- **`stat`이 아니라 `lstat`을 쓴다.** 심볼릭 링크를 따라가지 않으므로 순환 링크에 빠지지 않고, 링크를 링크로 표시할 수 있다.
+- **경로 검증은 `realpath` 이후에 한다.** `path.resolve`만으로는 루트 안에 심어진 심볼릭 링크를 통한 탈출을 막지 못한다. `startsWith(root + sep)`로 구분자까지 비교해야 `/data-secret`이 `/data`의 하위로 오인되지 않는다.
 
 ## 알려진 한계
 
-- **`lstat` N+1.** 디렉터리 하나당 엔트리 수만큼 `lstat`이 병렬로 나간다. `MAX_ENTRIES`(기본 500)가 사실상 유일한 상한이다. 큰 디렉터리를 다뤄야 하면 여기에 페이지네이션을 붙여야 하는데, 그 시점에 URL 상태가 `?open=`뿐 아니라 `?page:경로=`까지 늘어나면서 복잡해진다.
-- **가상 스크롤 불가.** 서버가 렌더한 결과를 클라이언트가 윈도잉할 수 없다. 항목이 수천 개면 클라이언트 컴포넌트로 넘겨야 하고, 그러면 데이터를 가져올 별도 경로가 다시 필요해진다.
-- **변경 감지 없음.** 외부에서 파일이 바뀌어도 화면은 그대로다. `fs.watch` → SSE → `router.refresh()`가 우회로지만, 그러면 열린 서브트리 전체가 다시 렌더된다.
-- **폴더를 펼칠 때마다 서버 왕복.** 로컬에서는 체감이 거의 없지만 원격이면 `<Link prefetch>`로 완화해야 한다. 다만 프리페치는 열지도 않은 폴더의 `readdir`를 미리 부르므로 트레이드오프가 있다.
-- **RSC 페이로드가 raw JSON보다 무겁다.** 직렬화된 엘리먼트 트리라서, 같은 데이터를 JSON으로 보낼 때보다 크다.
+- **변경 감지 없음.** 목록 캐시가 비워지지 않아서, 한 번 읽은 폴더는 외부에서 바뀌어도 그대로 보인다.
+- **`lstat` N+1.** 디렉터리 하나당 항목 수만큼 `lstat`이 나간다. `MAX_ENTRIES`(500)가 상한이다.
+- **barlo 브리지는 탭 단위다.** 페이지가 다른 origin으로 이동해도 노출 함수가 남는다. 이 앱은 외부 페이지를 열지 않는다는 전제에 기대고 있다. HTML 미리보기나 외부 링크를 추가하기 전에는 barlo 쪽에서 호출한 컨텍스트의 origin을 검사하도록 고쳐야 한다.
