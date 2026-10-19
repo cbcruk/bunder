@@ -26,3 +26,22 @@ export interface DirListing {
 
 /** How many entries one listing request adds, which also bounds one `lstat` batch. */
 export const PAGE_SIZE = 200
+
+/**
+ * How the preview shows a file, decided from its leading bytes by the Bun side.
+ *
+ * Only `image`, `pdf`, `video` and `audio` may become `blob:` URLs; `text` is read as text and
+ * `binary` is described, not shown.
+ */
+export type FileKind = 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'binary'
+
+/** What `provideFile` learned about an entry before handing it to the page. */
+export type FileInfo =
+  | { kind: 'dir' }
+  | {
+      kind: FileKind
+      /** The MIME type to give a `blob:` URL, overriding the one Chrome guesses from the name. */
+      mime: string
+      /** Size in bytes when the file was inspected. */
+      size: number
+    }

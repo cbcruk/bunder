@@ -1,4 +1,4 @@
-import type { DirListing, EntryStat } from './fs/fs.types'
+import type { DirListing, EntryStat, FileInfo } from './fs/fs.types'
 
 /**
  * Functions `src/main.ts` exposes to the page through barlo.
@@ -25,6 +25,14 @@ export interface FinderBridge {
   watchDir(rel: string): Promise<void>
   /** Releases one {@linkcode watchDir} call for a directory. */
   unwatchDir(rel: string): Promise<void>
+  /**
+   * Puts an entry into the page's `<input type="file" id={inputId}>` and says how to show it.
+   *
+   * The page reads the file from `input.files[0]`, which Chrome reads from disk, so no file bytes
+   * cross the bridge. A directory is only described; the input is left empty. Rejects when the
+   * entry is outside the root, is a special file, or the input is missing.
+   */
+  provideFile(rel: string, inputId: string): Promise<FileInfo>
 }
 
 /**

@@ -12,6 +12,7 @@ import {
 
 import type { Entry } from '../../../fs/fs.types'
 import { bridge } from '../../bridge'
+import { Preview } from '../preview/preview'
 import { Rail, Tree } from '../tree/tree'
 import { childOnPath, toggleOpen, treeKeyAction } from '../tree/tree.utils'
 
@@ -107,7 +108,7 @@ export function Finder(): ReactNode {
           {selected === null ? (
             <p className="preview__empty">Select a file to preview it.</p>
           ) : (
-            <p className="preview__path">{selected}</p>
+            <Preview key={selected} rel={selected} />
           )}
         </aside>
       </div>

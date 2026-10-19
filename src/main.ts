@@ -4,8 +4,10 @@ import path from 'node:path'
 
 import type { FinderBridge, FinderPage } from './bridge.types'
 import { createDirWatcher } from './fs/dir-watcher'
+import { inspectFile } from './fs/inspect-file'
 import { readEntries } from './fs/read-entries'
 import { statEntries } from './fs/stat-entries'
+import { setInputFiles } from './set-input-files'
 import index from './ui/index.html'
 
 const rootInput = process.argv[2] ?? Bun.env.EXPLORER_ROOT ?? process.cwd()
@@ -14,6 +16,10 @@ if (!root) {
   console.error(`Cannot open ${rootInput}`)
   process.exit(1)
 }
+
+// Known once the app page has loaded; before that the window is still on barlo's blank page, whose
+// origin can read as "null".
+const appOrigin = Promise.withResolvers<string>()
 
 const watcher = createDirWatcher(root, rel => {
   void app.evaluate((rel: string) => (window as unknown as FinderPage).onDirChanged?.(rel), rel)
@@ -25,6 +31,12 @@ const bridge: FinderBridge = {
   statEntries: (rel, names) => statEntries(root, rel, names),
   watchDir: rel => watcher.watch(rel),
   unwatchDir: async rel => watcher.unwatch(rel),
+  provideFile: async (rel, inputId) => {
+    const { abs, info } = await inspectFile(root, rel)
+    if (info.kind === 'dir') return info
+    await setInputFiles(app.mainWindow().unwrap(), await appOrigin.promise, inputId, abs)
+    return info
+  },
 }
 
 // barlo cannot serve an HTMLBundle itself, so Bun's own server bundles the UI and barlo proxies it.
@@ -55,3 +67,4 @@ if (loaded.isErr()) {
   console.error(loaded.error.message)
   app.exit()
 }
+appOrigin.resolve((await app.evaluate<string>('location.origin')).unwrap())
