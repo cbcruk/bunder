@@ -7,6 +7,57 @@ export const TEXT_LIMIT = 256 * 1024
 /** Largest SVG drawn as an image; {@linkcode mediaUrl} copies an SVG into memory as a `data:` URL. */
 export const SVG_LIMIT = 8 * 1024 * 1024
 
+const LANGUAGES: Record<string, string> = {
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  jsx: 'jsx',
+  json: 'json',
+  html: 'html',
+  htm: 'html',
+  xml: 'xml',
+  svg: 'svg',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  py: 'python',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'zsh',
+  php: 'php',
+  hack: 'hack',
+  yaml: 'yaml',
+  yml: 'yaml',
+  md: 'markdown',
+  markdown: 'markdown',
+}
+
+/**
+ * Picks the `CodeBlock` syntax-highlighting language for a file from its name.
+ *
+ * Only languages the Astryx tokenizer knows are returned, so the header never names a language
+ * that would still render as plain text.
+ *
+ * @returns The language, or `null` when the file is shown as plain text.
+ *
+ * @example
+ * ```ts
+ * import { languageOf } from './preview.utils'
+ *
+ * languageOf('main.ts') // 'typescript'
+ * languageOf('notes.txt') // null
+ * ```
+ */
+export function languageOf(name: string): string | null {
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0) return null
+  return LANGUAGES[name.slice(dot + 1).toLowerCase()] ?? null
+}
+
 let nextInput = 0
 
 /**
