@@ -8,6 +8,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { Suspense, use, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { formatSize, parentOf, readStat, watchListing } from '../directory-column/directory-column.utils'
+import { languageOf, tokenize } from '../../syntax'
 import { RenderedDocument } from '../rendered-document/rendered-document'
 import { renderFormatOf } from '../rendered-document/rendered-document.utils'
 import type { PreviewProps, PreviewResult } from './preview.types'
@@ -111,7 +112,18 @@ function Body({ name, result }: { name: string; result: PreviewResult }): ReactN
 function TextView({ name, text }: { name: string; text: string }): ReactNode {
   const format = renderFormatOf(name)
   const [view, setView] = useState('source')
-  const code = <CodeBlock code={text} size="sm" width="100%" maxHeight="60vh" />
+  const language = languageOf(name)
+  const code = (
+    <CodeBlock
+      code={text}
+      language={language ?? 'plaintext'}
+      hasLineNumbers={language !== null}
+      tokenizer={tokenize}
+      size="sm"
+      width="100%"
+      maxHeight="60vh"
+    />
+  )
 
   if (!format) return code
 
