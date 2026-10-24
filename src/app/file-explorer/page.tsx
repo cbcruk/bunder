@@ -8,7 +8,6 @@ import { Text } from '@astryxdesign/core/Text'
 import { Toolbar } from '@astryxdesign/core/Toolbar'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import {
-  Suspense,
   use,
   useCallback,
   useEffect,
@@ -32,7 +31,8 @@ import type { Selection } from './page.types'
 import { baseName, columnKeyTarget, columnsFor, isOnPath } from './page.utils'
 import { useFollowEnd } from './use-follow-end'
 
-const rootPath = bridge.rootPath()
+/** The explorer root's own name, which labels the first column. */
+const rootName = bridge.rootPath().then(path => baseName(path, path) || path)
 
 const page: CSSProperties = { height: '100dvh' }
 const columnRow: CSSProperties = { overflowX: 'auto', overflowY: 'hidden' }
@@ -47,15 +47,17 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
  * and Left returns, with selection following focus. Tab and Shift+Tab only move focus between
  * columns and never change the selection. Right on a folder whose column is still loading
  * enters it once the rows arrive, and Right on a folder that only has focus selects it first.
- * Selecting anything else cancels a pending enter. When the selected entry disappears, the selection moves to its
- * folder, and focus is put back without selecting anything if it fell out of the window with the
- * row. The newest column, or the preview, is scrolled into view whenever the selection changes,
- * and kept there as the window is resized (see {@linkcode useFollowEnd}).
+ * Selecting anything else cancels a pending enter. When the selected entry disappears, the
+ * selection moves to its folder, and focus is put back without selecting anything if it fell out
+ * of the window with the row. The newest column, or the preview, is scrolled into view whenever
+ * the selection changes, and kept there as the window is resized (see {@linkcode useFollowEnd}).
+ *
+ * Suspends until the root's name has arrived.
  */
 export default function FileExplorerPage(): ReactNode {
+  const root = use(rootName)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [entering, setEntering] = useState<string | null>(null)
-  const [rootName, setRootName] = useState('Root')
   const columnsRef = useRef<HTMLElement>(null)
   const refocus = useRef(false)
   const columns = columnsFor(selection)
@@ -65,6 +67,7 @@ export default function FileExplorerPage(): ReactNode {
 
   const onSelect = useCallback((entry: Entry) => {
     setSelection(prev => (prev?.rel === entry.rel ? prev : { rel: entry.rel, kind: entry.kind }))
+    // Same as keepEntering, inlined so the callback stays stable for the memoized rows.
     setEntering(pending => (pending === entry.rel ? pending : null))
   }, [])
 
@@ -77,9 +80,6 @@ export default function FileExplorerPage(): ReactNode {
 
   const onEntered = (): void => setEntering(null)
 
-  useEffect(() => {
-    void rootPath.then(path => setRootName(baseName(path, path) || path))
-  }, [])
   useFollowEnd(columnsRef)
 
   useEffect(() => {
@@ -154,9 +154,9 @@ export default function FileExplorerPage(): ReactNode {
                 isDisabled={selection === null}
                 label="Go to enclosing folder"
               />
-              <Suspense fallback={null}>
-                <FolderName rel={folder} />
-              </Suspense>
+              <Text type="label" maxLines={1}>
+                {baseName(folder, root)}
+              </Text>
             </>
           }
           endContent={
@@ -173,7 +173,7 @@ export default function FileExplorerPage(): ReactNode {
               <DirectoryColumn
                 key={col.dir}
                 rel={col.dir}
-                label={baseName(col.dir, rootName)}
+                label={baseName(col.dir, root)}
                 selected={col.selected}
                 onSelect={onSelect}
                 onSelectionLost={onSelectionLost}
@@ -190,14 +190,5 @@ export default function FileExplorerPage(): ReactNode {
         </LayoutContent>
       }
     />
-  )
-}
-
-function FolderName({ rel }: { rel: string }): ReactNode {
-  const root = use(rootPath)
-  return (
-    <Text type="label" maxLines={1}>
-      {baseName(rel, baseName(root, root) || root)}
-    </Text>
   )
 }

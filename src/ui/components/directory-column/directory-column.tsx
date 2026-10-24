@@ -191,7 +191,7 @@ const Row = memo(function Row({ entry, isSelected, onSelect }: RowProps): ReactN
     button.setAttribute('aria-label', kind ? `${entry.name}, ${kind}` : entry.name)
     if (isSelected) button.setAttribute('aria-current', 'true')
     else button.removeAttribute('aria-current')
-  }, [entry, isSelected])
+  }, [entry.name, entry.kind, isSelected])
 
   return (
     <ListItem
