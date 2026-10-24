@@ -29,7 +29,7 @@ import {
 import { PAGE_SIZE, type Entry } from '../../../fs/fs.types'
 import { useDirWatch, useEnterOnLoad, useRovingTabStop } from './directory-column.hooks'
 import type { ColumnView, DirectoryColumnProps } from './directory-column.types'
-import { focusAndSelect, readListing } from './directory-column.utils'
+import { focusAndSelect, readListing, readStat } from './directory-column.utils'
 
 const ITEM = 'li[data-rel] button'
 const column: CSSProperties = { flexShrink: 0, overflowY: 'auto' }
@@ -87,7 +87,17 @@ function ColumnBody({
 
   useEffect(() => {
     if (!result.ok || selected === null) return
-    if (!result.listing.entries.some(e => e.rel === selected)) selectionLost(rel)
+    const { entries, total } = result.listing
+    if (entries.some(e => e.rel === selected)) return
+    if (entries.length >= total) return selectionLost(rel)
+    // Only the first pages are loaded, and the selection may just have been pushed past them.
+    let live = true
+    void readStat(rel, selected.slice(rel === '' ? 0 : rel.length + 1)).then(stat => {
+      if (live && stat === null) selectionLost(rel)
+    })
+    return () => {
+      live = false
+    }
   }, [result, rel, selected])
 
   useEffect(() => {
