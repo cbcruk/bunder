@@ -15,6 +15,7 @@ import {
   Suspense,
   use,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
@@ -26,8 +27,9 @@ import {
 } from 'react'
 
 import { PAGE_SIZE, type Entry } from '../../../fs/fs.types'
+import { useDirWatch, useEnterOnLoad, useRovingTabStop } from './directory-column.hooks'
 import type { ColumnView, DirectoryColumnProps } from './directory-column.types'
-import { focusAndSelect, readListing, watchListing } from './directory-column.utils'
+import { focusAndSelect, readListing } from './directory-column.utils'
 
 const ITEM = 'li[data-rel] button'
 const column: CSSProperties = { flexShrink: 0, overflowY: 'auto' }
@@ -77,20 +79,16 @@ function ColumnBody({
     hasPaging: true,
   })
 
-  useEffect(
-    () =>
-      watchListing(rel, () =>
-        startTransition(() => setView(v => ({ ...v, listing: readListing(rel, v.limit) }))),
-      ),
-    [rel],
-  )
+  const selectionLost = useEffectEvent(onSelectionLost)
+
+  useDirWatch(rel, () => startTransition(() => setView(v => ({ ...v, listing: readListing(rel, v.limit) }))))
 
   const result = use(view.listing)
 
   useEffect(() => {
     if (!result.ok || selected === null) return
-    if (!result.listing.entries.some(e => e.rel === selected)) onSelectionLost(rel)
-  }, [result, rel, selected, onSelectionLost])
+    if (!result.listing.entries.some(e => e.rel === selected)) selectionLost(rel)
+  }, [result, rel, selected])
 
   useEffect(() => {
     const from = focusFrom.current
@@ -105,20 +103,8 @@ function ColumnBody({
     if (item) focusAndSelect(item)
   }, [result, getItems])
 
-  useEffect(() => {
-    if (!isEntering) return
-    onEntered()
-    const first = getItems()[0]
-    if (first) focusAndSelect(first)
-  }, [isEntering, onEntered, getItems])
-
-  useEffect(() => {
-    if (selected === null) return
-    const items = getItems()
-    const onPath = items.find(item => item.closest<HTMLElement>('li[data-rel]')?.dataset.rel === selected)
-    if (!onPath || items.some(item => item === document.activeElement)) return
-    for (const item of items) item.tabIndex = item === onPath ? 0 : -1
-  }, [selected, result, getItems])
+  useEnterOnLoad(isEntering, onEntered, getItems)
+  useRovingTabStop(getItems, selected, result)
 
   if (!result.ok) {
     return (
