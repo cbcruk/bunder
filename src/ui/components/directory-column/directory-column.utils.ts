@@ -5,19 +5,20 @@ import type { ListingResult } from './directory-column.types'
 
 const listings = new Map<string, Map<number, Promise<ListingResult>>>()
 const stats = new Map<string, Map<string, Promise<EntryStat | null>>>()
-const listeners = new Map<string, Set<() => void>>()
+const listeners = new Map<string, Set<(names: readonly string[]) => void>>()
 
 ;(window as unknown as FinderPage).onDirChanged = (rel, names) => {
-  invalidate(rel)
+  invalidate(rel, names)
   for (const name of names) {
     const child = rel === '' ? name : `${rel}/${name}`
-    if (listeners.has(child)) invalidate(child)
+    // The child's own watch may have seen nothing, so which of its entries changed is unknown.
+    if (listeners.has(child)) invalidate(child, [])
   }
 }
 
-function invalidate(rel: string): void {
+function invalidate(rel: string, names: readonly string[]): void {
   evict(rel)
-  for (const listener of listeners.get(rel) ?? []) listener()
+  for (const listener of listeners.get(rel) ?? []) listener(names)
 }
 
 function evict(rel: string): void {
@@ -78,9 +79,10 @@ export function readStat(dir: string, name: string): Promise<EntryStat | null> {
  * Meant to be returned from an effect: the returned cleanup stops the watch, and once no watcher
  * remains for `rel` its cache entries are evicted too.
  *
+ * @param onChange Called with the names of the entries that changed, empty when they are unknown.
  * @returns A function that stops watching.
  */
-export function watchListing(rel: string, onChange: () => void): () => void {
+export function watchListing(rel: string, onChange: (names: readonly string[]) => void): () => void {
   let set = listeners.get(rel)
   if (!set) listeners.set(rel, (set = new Set()))
   set.add(onChange)

@@ -64,13 +64,13 @@ export default function FileExplorerPage(): ReactNode {
     [],
   )
 
-  const onSelectionLost = useCallback((dir: string) => {
+  const onSelectionLost = (dir: string): void => {
     const active = document.activeElement
     refocus.current = active === null || active === document.body
     setSelection(dir === '' ? null : { rel: dir, kind: 'dir' })
-  }, [])
+  }
 
-  const onEntered = useCallback(() => setEntering(null), [])
+  const onEntered = (): void => setEntering(null)
 
   useEffect(() => {
     void rootPath.then(path => setRootName(baseName(path, path) || path))

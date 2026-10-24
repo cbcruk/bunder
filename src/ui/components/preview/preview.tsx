@@ -5,14 +5,16 @@ import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Spinner } from '@astryxdesign/core/Spinner'
 import { Text } from '@astryxdesign/core/Text'
-import { Suspense, use, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, use, useState, type CSSProperties, type ReactNode } from 'react'
 
-import { formatSize, parentOf, readStat, watchListing } from '../directory-column/directory-column.utils'
+import { useDirVersion } from '../directory-column/directory-column.hooks'
+import { formatSize, parentOf, readStat } from '../directory-column/directory-column.utils'
 import { languageOf, tokenize } from '../../syntax'
 import { RenderedDocument } from '../rendered-document/rendered-document'
 import { renderFormatOf } from '../rendered-document/rendered-document.utils'
+import { useLatestResult, useMediaUrl } from './preview.hooks'
 import type { PreviewProps, PreviewResult } from './preview.types'
-import { loadPreview, mediaUrl, TEXT_LIMIT } from './preview.utils'
+import { loadPreview, TEXT_LIMIT } from './preview.utils'
 
 const media: CSSProperties = {
   display: 'block',
@@ -35,31 +37,18 @@ const pdf: CSSProperties = {
  * Shows the selected file: its name and details, then text as text, media through a URL, and
  * anything else described.
  *
- * Reloads when the file's folder reports a change, since a `File` Chrome handed out stops being
- * readable once the file on disk is modified.
+ * Reloads when the file's folder reports a change to the file, since a `File` Chrome handed out
+ * stops being readable once the file on disk is modified. Changes to other entries in the folder
+ * leave it alone.
  *
  * `blob:` URLs share the app's origin, so they are only ever made for the media kinds the Bun side
- * sniffed. SVG gets a `data:` URL instead (see {@linkcode mediaUrl}), and images go through
+ * sniffed. SVG gets a `data:` URL instead (see {@linkcode useMediaUrl}), and images go through
  * `<img>`, where SVG scripts do not run.
  */
 export function Preview({ rel }: PreviewProps): ReactNode {
-  const [loaded, setLoaded] = useState<{ rel: string; result: PreviewResult } | null>(null)
-  const [version, setVersion] = useState(0)
-
-  useEffect(() => watchListing(parentOf(rel), () => setVersion(v => v + 1)), [rel])
-
-  useEffect(() => {
-    let live = true
-    void loadPreview(rel).then(result => {
-      if (live) setLoaded({ rel, result })
-    })
-    return () => {
-      live = false
-    }
-  }, [rel, version])
-
   const name = rel.slice(rel.lastIndexOf('/') + 1)
-  const result = loaded?.rel === rel ? loaded.result : null
+  const version = useDirVersion(parentOf(rel), name)
+  const result = useLatestResult(rel, loadPreview, version)
 
   return (
     <VStack gap={4}>
@@ -145,25 +134,7 @@ interface MediaProps {
 }
 
 function Media({ kind, blob, name }: MediaProps): ReactNode {
-  const [url, setUrl] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let release: (() => void) | null = null
-    let live = true
-    void mediaUrl(blob).then(
-      made => {
-        if (!live) return made.release()
-        release = made.release
-        setUrl(made.url)
-      },
-      () => live && setFailed(true),
-    )
-    return () => {
-      live = false
-      release?.()
-    }
-  }, [blob])
+  const { url, failed } = useMediaUrl(blob)
 
   if (failed) return <Banner status="error" title="Cannot read this file" container="section" />
   if (!url) return <Spinner label="Loading" />
