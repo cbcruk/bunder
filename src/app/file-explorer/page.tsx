@@ -29,7 +29,7 @@ import {
 } from '../../ui/components/directory-column/directory-column.utils'
 import { Preview } from '../../ui/components/preview/preview'
 import type { Selection } from './page.types'
-import { baseName, columnKeyTarget, columnsFor } from './page.utils'
+import { baseName, columnKeyTarget, columnsFor, isOnPath } from './page.utils'
 import { useFollowEnd } from './use-follow-end'
 
 const rootPath = bridge.rootPath()
@@ -46,7 +46,8 @@ const detailColumn: CSSProperties = { flexGrow: 1, flexShrink: 0, flexBasis: 320
  * contents in the next column. Up and Down move within a column, Right enters a folder's column
  * and Left returns, with selection following focus. Tab and Shift+Tab only move focus between
  * columns and never change the selection. Right on a folder whose column is still loading
- * enters it once the rows arrive. When the selected entry disappears, the selection moves to its
+ * enters it once the rows arrive, and Right on a folder that only has focus selects it first.
+ * Selecting anything else cancels a pending enter. When the selected entry disappears, the selection moves to its
  * folder, and focus is put back without selecting anything if it fell out of the window with the
  * row. The newest column, or the preview, is scrolled into view whenever the selection changes,
  * and kept there as the window is resized (see {@linkcode useFollowEnd}).
@@ -59,14 +60,18 @@ export default function FileExplorerPage(): ReactNode {
   const refocus = useRef(false)
   const columns = columnsFor(selection)
 
-  const onSelect = useCallback(
-    (entry: Entry) => setSelection(prev => (prev?.rel === entry.rel ? prev : { rel: entry.rel, kind: entry.kind })),
-    [],
-  )
+  // A pending enter belongs to the folder it was asked for; any other selection cancels it.
+  const keepEntering = (rel: string): void => setEntering(pending => (pending === rel ? pending : null))
+
+  const onSelect = useCallback((entry: Entry) => {
+    setSelection(prev => (prev?.rel === entry.rel ? prev : { rel: entry.rel, kind: entry.kind }))
+    setEntering(pending => (pending === entry.rel ? pending : null))
+  }, [])
 
   const onSelectionLost = (dir: string): void => {
     const active = document.activeElement
     refocus.current = active === null || active === document.body
+    keepEntering(dir)
     setSelection(dir === '' ? null : { rel: dir, kind: 'dir' })
   }
 
@@ -79,7 +84,6 @@ export default function FileExplorerPage(): ReactNode {
 
   useEffect(() => {
     columnsRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    setEntering(pending => (pending !== null && pending !== selection?.rel ? null : pending))
   }, [selection])
 
   useEffect(() => {
@@ -96,15 +100,24 @@ export default function FileExplorerPage(): ReactNode {
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     if (!columnsRef.current || event.altKey || event.ctrlKey || event.metaKey) return
     const from = event.target as HTMLElement
+    const row = from.closest<HTMLElement>('li[data-rel]')
+    const rel = row?.dataset.rel
+    const enters = event.key === 'ArrowRight' && row?.dataset.kind === 'dir' && rel !== undefined
+    // A folder that only has focus, reached with Tab, is selected first: the column to its right
+    // belongs to another folder, or is not there yet.
+    if (enters && !isOnPath(rel, selection)) {
+      event.preventDefault()
+      setSelection({ rel, kind: 'dir' })
+      setEntering(rel)
+      return
+    }
     const target = columnKeyTarget(columnsRef.current, from, event.key)
     if (target) {
       event.preventDefault()
       focusAndSelect(target)
       return
     }
-    const row = from.closest<HTMLElement>('li[data-rel]')
-    const rel = row?.dataset.rel
-    if (event.key === 'ArrowRight' && row?.dataset.kind === 'dir' && rel !== undefined) {
+    if (enters) {
       event.preventDefault()
       setEntering(rel)
     }
@@ -115,6 +128,7 @@ export default function FileExplorerPage(): ReactNode {
     const parent = parentOf(selection.rel)
     // Reaching the root disables this button, which drops focus; put it back in the first column.
     if (parent === '') refocus.current = true
+    keepEntering(parent)
     setSelection(parent === '' ? null : { rel: parent, kind: 'dir' })
   }
 

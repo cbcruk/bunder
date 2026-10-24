@@ -63,6 +63,23 @@ export function columnKeyTarget(container: HTMLElement, from: HTMLElement, key: 
   return columns[index - 1]?.querySelector<HTMLElement>(`li[aria-current="true"] button`) ?? null
 }
 
+/**
+ * Tells whether `rel` is the selected entry or one of the folders leading to it.
+ *
+ * @example
+ * ```ts
+ * import { isOnPath } from './page.utils'
+ *
+ * const selection = { rel: 'src/ui/main.tsx', kind: 'file' } as const
+ * isOnPath('src/ui', selection) // true
+ * isOnPath('src/u', selection) // false
+ * isOnPath('docs', selection) // false
+ * ```
+ */
+export function isOnPath(rel: string, selection: Selection | null): boolean {
+  return selection !== null && (selection.rel === rel || selection.rel.startsWith(`${rel}/`))
+}
+
 /** Returns the last segment of a root-relative path, or `fallback` for the root itself. */
 export function baseName(rel: string, fallback: string): string {
   return rel === '' ? fallback : rel.slice(rel.lastIndexOf('/') + 1)
