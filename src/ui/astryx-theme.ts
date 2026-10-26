@@ -17,4 +17,5 @@ import '@fontsource/figtree/500.css'
 import '@fontsource/figtree/600.css'
 import '@fontsource/figtree/700.css'
 
+/** The neutral Astryx theme, passed to `<Theme>` at the app root. */
 export { neutralTheme as theme } from '@astryxdesign/theme-neutral/built'

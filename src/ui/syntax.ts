@@ -8,8 +8,11 @@ import { codeToTokens, isSupportedLanguage, type Lang, type Theme } from '@pierr
 
 /** A run of code `CodeBlock` colors as one of its token types, by UTF-16 offsets into the whole code. */
 export interface SyntaxRange {
+  /** The `CodeBlock` token type, such as `keyword` or `string`. */
   type: string
+  /** Offset of the run's first code unit. */
   start: number
+  /** Offset just past the run's last code unit. */
   end: number
 }
 

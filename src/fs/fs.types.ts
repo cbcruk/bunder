@@ -3,9 +3,11 @@ export type EntryKind = 'dir' | 'file' | 'link'
 
 /** One visible entry of a directory, as far as `readdir` alone can tell. */
 export interface Entry {
+  /** The entry's own name, without its directory. */
   name: string
   /** Path relative to the explorer root, always `/`-separated. Doubles as the React key. */
   rel: string
+  /** What the entry is, from its `readdir` file type. */
   kind: EntryKind
 }
 
@@ -19,6 +21,7 @@ export interface EntryStat {
 
 /** The first entries of one directory, in display order. */
 export interface DirListing {
+  /** Whole pages of {@linkcode PAGE_SIZE} entries from the top, directories first and then by name. */
   entries: Entry[]
   /** How many visible entries the directory holds, including those beyond `entries`. */
   total: number
@@ -39,6 +42,7 @@ export type FileKind = 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'binary'
 export type FileInfo =
   | { kind: 'dir' }
   | {
+      /** How the preview should show the file. */
       kind: FileKind
       /** The MIME type to give a `blob:` URL, overriding the one Chrome guesses from the name. */
       mime: string
