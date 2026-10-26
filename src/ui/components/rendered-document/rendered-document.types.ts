@@ -3,6 +3,7 @@ export type RenderFormat = 'html' | 'markdown'
 
 /** Props for {@linkcode RenderedDocument}. */
 export interface RenderedDocumentProps {
+  /** How to turn `text` into a page. */
   format: RenderFormat
   /** The document's source, possibly cut short by the preview's text limit. */
   text: string
