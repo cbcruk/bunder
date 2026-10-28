@@ -1,22 +1,14 @@
 import { launch } from 'barlo'
-import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { FinderBridge, FinderPage } from './bridge.types'
-import { createDirWatcher } from './fs/dir-watcher'
+import type { BarloBridge, FinderPage } from './bridge.types'
+import { createBridge, resolveRoot } from './create-bridge'
 import { inspectFile } from './fs/inspect-file'
-import { readEntries } from './fs/read-entries'
-import { statEntries } from './fs/stat-entries'
 import index from './ui/index.html'
 
-const rootInput = process.argv[2] ?? Bun.env.EXPLORER_ROOT ?? process.cwd()
-const root = await realpath(path.resolve(rootInput)).catch(() => null)
-if (!root) {
-  console.error(`Cannot open ${rootInput}`)
-  process.exit(1)
-}
+const root = await resolveRoot()
 
-const watcher = createDirWatcher(root, (rel, names) => {
+const shared = createBridge(root, (rel, names) => {
   void app.evaluate(
     (rel: string, names: string[]) => (window as unknown as FinderPage).onDirChanged?.(rel, names),
     rel,
@@ -24,12 +16,8 @@ const watcher = createDirWatcher(root, (rel, names) => {
   )
 })
 
-const bridge: FinderBridge = {
-  rootPath: async () => root,
-  readDir: (rel, limit) => readEntries(root, rel, limit),
-  statEntries: (rel, names) => statEntries(root, rel, names),
-  watchDir: rel => watcher.watch(rel),
-  unwatchDir: async rel => watcher.unwatch(rel),
+const bridge: BarloBridge = {
+  ...shared.bridge,
   provideFile: async (rel, inputId) => {
     const { abs, info } = await inspectFile(root, rel)
     if (info.kind === 'dir') return info
@@ -52,7 +40,7 @@ if (launched.isErr()) {
 
 const app = launched.unwrap()
 app.onExit(() => {
-  watcher.close()
+  shared.close()
   ui.stop(true)
   process.exit(0)
 })

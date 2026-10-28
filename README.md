@@ -86,7 +86,9 @@ SVG images are also shown only in a way that runs no script: as a `data:` URL in
 
 ```
 src/main.ts                       Bun entry point: launches Chrome, serves the UI, exposes the bridge
-src/bridge.types.ts               The contract between the page and Bun (FinderBridge, FinderPage)
+src/dev.ts                        Development entry point: serves the UI with HMR and the bridge over HTTP, no Chrome window
+src/create-bridge.ts              The bridge both entry points share
+src/bridge.types.ts               The contract between the page and Bun (FinderBridge, BarloBridge, FinderPage)
 src/fs/                           Root checks, listing and stat reads, change watching, preview sniffing, path-free errors
 src/app/file-explorer/            The whole window: a column browser started from Astryx's file-explorer template
 src/ui/                           Client entry point, bridge, theme
@@ -96,12 +98,15 @@ src/ui/components/rendered-document/  HTML and Markdown rendering
 ```
 
 ```bash
+pnpm dev /folder/to/show       # prints a URL to open in any browser; UI changes apply without a reload
 pnpm typecheck
 ```
 
+`pnpm dev` skips barlo: bridge calls go over `POST /__bridge/:name`, file contents over `GET /__file`, and directory changes over a WebSocket. Since that makes the root readable over HTTP, every request must carry the random token in the printed URL and a `Host` of `127.0.0.1:<port>`. `src/dev.ts` is its own entry point, so `pnpm compile` never includes it. Changes to the Bun side need a restart, which prints a new URL.
+
 ### Design decisions
 
-- **Only the Bun side touches the filesystem.** The page asks through barlo's `exposeFunction` (a CDP binding) and nothing else; no HTTP route serves files. barlo answers only calls from documents on the app's origin.
+- **Only the Bun side touches the filesystem.** The page asks through barlo's `exposeFunction` (a CDP binding) and nothing else; in the app, no HTTP route serves files (`pnpm dev` is the exception, see above). barlo answers only calls from documents on the app's origin.
 - **Paths are checked after `realpath`.** That stops a symbolic link inside the root from pointing outside it. Comparing against `root + sep` keeps `/data-secret` from passing as a child of `/data`.
 - **Listings don't `lstat`.** Kinds come from `readdir`'s `Dirent`s and links are never followed. Size and time are read for the selected file only.
 - **File contents never travel over the bridge (JSON).** 100 MB took 58 s that way and blocked every other call meanwhile. Instead barlo's `provideFile` (CDP `DOM.setFileInputFiles`) puts the file into a hidden file input, and Chrome reads it from disk.
