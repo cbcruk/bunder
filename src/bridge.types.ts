@@ -1,7 +1,7 @@
 import type { DirListing, EntryStat, FileInfo } from './fs/fs.types'
 
 /**
- * Functions `src/main.ts` exposes to the page through barlo.
+ * Functions the Bun side offers the page, through barlo or the development server alike.
  *
  * Arguments and results round-trip as JSON; a function that throws on the Bun side rejects on the
  * page side with the same message.
@@ -25,6 +25,13 @@ export interface FinderBridge {
   watchDir(rel: string): Promise<void>
   /** Releases one {@linkcode watchDir} call for a directory. */
   unwatchDir(rel: string): Promise<void>
+}
+
+/**
+ * The functions `src/main.ts` exposes to the page through barlo: {@linkcode FinderBridge} plus a
+ * way to hand the page a file, which needs CDP.
+ */
+export interface BarloBridge extends FinderBridge {
   /**
    * Puts an entry into the page's `<input type="file" id={inputId}>` and says how to show it.
    *
@@ -39,6 +46,7 @@ export interface FinderBridge {
  * Functions the page installs on `window` for `src/main.ts` to call through `app.evaluate`.
  *
  * barlo has no channel from Bun to the page, so this is the reverse half of {@linkcode FinderBridge}.
+ * The development server calls it with what arrives over its WebSocket.
  */
 export interface FinderPage {
   /**

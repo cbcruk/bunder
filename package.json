@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "bun src/main.ts",
+    "dev": "bun src/dev.ts",
     "compile": "bun build --compile src/main.ts --outfile out/bunder",
     "typecheck": "tsc --noEmit"
   },
